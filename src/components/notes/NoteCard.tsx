@@ -1,0 +1,30 @@
+import Link from "next/link";
+import type { Note } from "@/types/api";
+import { Badge } from "@/components/ui/badge";
+
+function stripHtml(html: string) {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export function NoteCard({ note }: { note: Note }) {
+  const preview = stripHtml(note.content).slice(0, 100);
+  const date = new Date(note.updated_at || note.created_at).toLocaleDateString();
+  const displayTitle = note.title || "Untitled";
+
+  return (
+    <Link href={`/notes/${note.id}`} className="block group">
+      <div className="rounded-lg border border-border bg-card p-4 hover:bg-accent/50 transition-colors h-full flex flex-col gap-2">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-semibold text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+            {displayTitle}
+          </h3>
+          <Badge variant="secondary" className="capitalize shrink-0 text-xs">{note.topic}</Badge>
+        </div>
+        {preview && (
+          <p className="text-xs text-muted-foreground line-clamp-3 flex-1">{preview}</p>
+        )}
+        <p className="text-xs text-muted-foreground/60 mt-auto">{date}</p>
+      </div>
+    </Link>
+  );
+}
