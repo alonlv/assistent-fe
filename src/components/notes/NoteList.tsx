@@ -1,7 +1,9 @@
-import type { Note } from "@/types/api";
+import type { Note, Topic } from "@/types/api";
 import { NoteCard } from "./NoteCard";
 
-export function NoteList({ notes }: { notes: Note[] }) {
+export function NoteList({ notes, topics }: { notes: Note[]; topics?: Topic[] }) {
+  const colorByName = Object.fromEntries((topics ?? []).map((t) => [t.name, t.color]));
+
   if (notes.length === 0) {
     return (
       <p className="text-center text-muted-foreground py-12 text-sm">
@@ -13,7 +15,7 @@ export function NoteList({ notes }: { notes: Note[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {notes.map((note) => (
-        <NoteCard key={note.id} note={note} />
+        <NoteCard key={note.id} note={note} topicColor={colorByName[note.topic]} />
       ))}
     </div>
   );

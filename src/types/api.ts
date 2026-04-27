@@ -1,3 +1,11 @@
+export interface Topic {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+  note_count: number;
+}
+
 export interface Note {
   id: string;
   title: string;

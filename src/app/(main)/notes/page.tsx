@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, Suspense } from "react";
 import { useNotes, useCreateNote } from "@/hooks/use-notes";
+import { useTopics } from "@/hooks/use-topics";
 import { NoteList } from "@/components/notes/NoteList";
 import { TopicFilter } from "@/components/notes/TopicFilter";
 import { Button } from "@/components/ui/button";
@@ -13,16 +14,26 @@ function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-export default function NotesPage() {
-  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+function NotesPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const selectedTopic = searchParams.get("topic");
+
   const [search, setSearch] = useState("");
   const [newTopic, setNewTopic] = useState("");
   const [showTopicInput, setShowTopicInput] = useState(false);
-  const { data: notes = [], isLoading } = useNotes();
-  const createNote = useCreateNote();
-  const router = useRouter();
 
-  const topics = [...new Set(notes.map((n) => n.topic))].sort();
+  const { data: notes = [], isLoading } = useNotes();
+  const { data: topics = [] } = useTopics();
+  const createNote = useCreateNote();
+
+  function handleSelectTopic(topic: string | null) {
+    if (topic) {
+      router.push(`/notes?topic=${encodeURIComponent(topic)}`);
+    } else {
+      router.push("/notes");
+    }
+  }
 
   const filtered = notes.filter((n) => {
     const matchesTopic = !selectedTopic || n.topic === selectedTopic;
@@ -36,7 +47,7 @@ export default function NotesPage() {
   });
 
   async function handleCreate() {
-    const topic = newTopic.trim() || "general";
+    const topic = newTopic.trim() || selectedTopic || "general";
     const note = await createNote.mutateAsync({ content: "", topic });
     setShowTopicInput(false);
     setNewTopic("");
@@ -56,6 +67,7 @@ export default function NotesPage() {
           <div className="flex items-center gap-2">
             <input
               autoFocus
+              list="topic-suggestions"
               className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               placeholder="Topic (e.g. work)"
               value={newTopic}
@@ -65,6 +77,9 @@ export default function NotesPage() {
                 if (e.key === "Escape") setShowTopicInput(false);
               }}
             />
+            <datalist id="topic-suggestions">
+              {topics.map((t) => <option key={t.id} value={t.name} />)}
+            </datalist>
             <Button size="sm" onClick={handleCreate} disabled={createNote.isPending}>
               Create
             </Button>
@@ -75,7 +90,6 @@ export default function NotesPage() {
         )}
       </div>
 
-      {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -88,7 +102,7 @@ export default function NotesPage() {
 
       {topics.length > 0 && (
         <div className="mb-4">
-          <TopicFilter topics={topics} selected={selectedTopic} onSelect={setSelectedTopic} />
+          <TopicFilter topics={topics} selected={selectedTopic} onSelect={handleSelectTopic} />
         </div>
       )}
 
@@ -105,9 +119,17 @@ export default function NotesPage() {
               {filtered.length} result{filtered.length !== 1 ? "s" : ""} for &ldquo;{search}&rdquo;
             </p>
           )}
-          <NoteList notes={filtered} />
+          <NoteList notes={filtered} topics={topics} />
         </>
       )}
     </div>
+  );
+}
+
+export default function NotesPage() {
+  return (
+    <Suspense>
+      <NotesPageInner />
+    </Suspense>
   );
 }

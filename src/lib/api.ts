@@ -1,4 +1,4 @@
-import type { Note, Priority, Task, TaskStatus } from "@/types/api";
+import type { Note, Priority, Task, TaskStatus, Topic } from "@/types/api";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -41,5 +41,17 @@ export const api = {
     ) => apiFetch<Task>(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     delete: (id: string) =>
       apiFetch<void>(`/api/tasks/${id}`, { method: "DELETE" }),
+  },
+  topics: {
+    list: () => apiFetch<Topic[]>("/api/topics"),
+    create: (body: { name: string; color?: string }) =>
+      apiFetch<Topic>("/api/topics", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<{ name: string; color: string }>) =>
+      apiFetch<Topic>(`/api/topics/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    delete: (id: string, migrateToId?: string) =>
+      apiFetch<void>(
+        `/api/topics/${id}${migrateToId ? `?migrate_to=${encodeURIComponent(migrateToId)}` : ""}`,
+        { method: "DELETE" }
+      ),
   },
 };

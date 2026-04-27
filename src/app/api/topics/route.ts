@@ -24,13 +24,11 @@ async function proxyFetch(url: string, init?: RequestInit): Promise<NextResponse
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const body = await req.json();
-  return proxyFetch(`${BASE}/notes/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export async function GET() {
+  return proxyFetch(`${BASE}/topics`);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  return proxyFetch(`${BASE}/notes/${id}`, { method: "DELETE" });
+export async function POST(req: NextRequest) {
+  const body = await req.json();
+  return proxyFetch(`${BASE}/topics`, { method: "POST", body: JSON.stringify(body) });
 }

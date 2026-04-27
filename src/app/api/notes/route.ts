@@ -1,27 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BASE = process.env.ASSISTET_API_URL!;
-const TOKEN = process.env.ASSISTET_API_TOKEN!;
+const BASE = process.env.BACKEND_URL!;
+const TOKEN = process.env.APP_API_TOKEN!;
 
-function headers() {
+function backendHeaders() {
   return { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" };
+}
+
+async function proxyFetch(url: string, init?: RequestInit): Promise<NextResponse> {
+  try {
+    const res = await fetch(url, { ...init, headers: backendHeaders() });
+    if (res.status === 204) return new NextResponse(null, { status: 204 });
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text);
+      return NextResponse.json(data, { status: res.status });
+    } catch {
+      return new NextResponse(text, { status: res.status });
+    }
+  } catch (err) {
+    console.error("Backend unreachable:", err);
+    return NextResponse.json({ error: "Backend service unavailable." }, { status: 503 });
+  }
 }
 
 export async function GET(req: NextRequest) {
   const topic = req.nextUrl.searchParams.get("topic");
   const url = `${BASE}/notes${topic ? `?topic=${encodeURIComponent(topic)}` : ""}`;
-  const res = await fetch(url, { headers: headers() });
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  return proxyFetch(url);
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const res = await fetch(`${BASE}/notes`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  return proxyFetch(`${BASE}/notes`, { method: "POST", body: JSON.stringify(body) });
 }

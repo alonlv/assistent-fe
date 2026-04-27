@@ -1,19 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { usePathname } from "next/navigation";
-import { FileText, CheckSquare, LogOut } from "lucide-react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { FileText, CheckSquare, LogOut, Plus, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTopics, useCreateTopic } from "@/hooks/use-topics";
+import { TOPIC_DOT } from "@/components/notes/TopicFilter";
+import { useState } from "react";
 
-const navItems = [
+const NAV_ITEMS = [
   { href: "/notes", label: "Notes", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const activeTopic = searchParams.get("topic");
+
+  const { data: topics = [] } = useTopics();
+  const createTopic = useCreateTopic();
+
+  const [showNewTopic, setShowNewTopic] = useState(false);
+  const [newTopicName, setNewTopicName] = useState("");
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -21,18 +31,31 @@ export function Sidebar() {
     router.refresh();
   }
 
+  async function handleCreateTopic() {
+    const name = newTopicName.trim();
+    if (!name) {
+      setShowNewTopic(false);
+      return;
+    }
+    await createTopic.mutateAsync({ name });
+    setNewTopicName("");
+    setShowNewTopic(false);
+    router.push(`/notes?topic=${encodeURIComponent(name.toLowerCase())}`);
+  }
+
   return (
     <aside className="hidden md:flex flex-col w-56 min-h-screen border-r border-border bg-background p-4 gap-1">
       <div className="mb-6 px-2">
         <h1 className="text-lg font-semibold tracking-tight">My Workspace</h1>
       </div>
-      {navItems.map(({ href, label, icon: Icon }) => (
+
+      {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
           href={href}
           className={cn(
             "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-            pathname.startsWith(href)
+            pathname.startsWith(href) && !activeTopic
               ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           )}
@@ -41,6 +64,95 @@ export function Sidebar() {
           {label}
         </Link>
       ))}
+
+      {/* Topics section */}
+      {topics.length > 0 || showNewTopic ? (
+        <div className="mt-3">
+          <div className="flex items-center justify-between px-3 mb-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Topics
+            </span>
+            <button
+              onClick={() => setShowNewTopic(true)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="New topic"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </div>
+
+          {showNewTopic && (
+            <div className="px-2 mb-1">
+              <input
+                autoFocus
+                value={newTopicName}
+                onChange={(e) => setNewTopicName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateTopic();
+                  if (e.key === "Escape") { setShowNewTopic(false); setNewTopicName(""); }
+                }}
+                onBlur={() => { if (!newTopicName.trim()) { setShowNewTopic(false); setNewTopicName(""); } }}
+                placeholder="Topic name…"
+                className="w-full h-7 rounded border border-input bg-transparent px-2 py-0.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+          )}
+
+          {topics.map((topic) => {
+            const isActive = activeTopic === topic.name && pathname.startsWith("/notes");
+            return (
+              <Link
+                key={topic.id}
+                href={`/notes?topic=${encodeURIComponent(topic.name)}`}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm transition-colors",
+                  isActive
+                    ? "bg-accent text-accent-foreground font-medium"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <span
+                  className={cn(
+                    "w-2 h-2 rounded-full shrink-0",
+                    TOPIC_DOT[topic.color] ?? "bg-gray-400"
+                  )}
+                />
+                <span className="capitalize flex-1 truncate">{topic.name}</span>
+                {topic.note_count > 0 && (
+                  <span className="text-xs opacity-50">{topic.note_count}</span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mt-3 px-3">
+          <button
+            onClick={() => setShowNewTopic(true)}
+            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Hash className="h-3 w-3" />
+            Add topic
+          </button>
+          {showNewTopic && (
+            <div className="mt-1">
+              <input
+                autoFocus
+                value={newTopicName}
+                onChange={(e) => setNewTopicName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateTopic();
+                  if (e.key === "Escape") { setShowNewTopic(false); setNewTopicName(""); }
+                }}
+                onBlur={() => { if (!newTopicName.trim()) { setShowNewTopic(false); setNewTopicName(""); } }}
+                placeholder="Topic name…"
+                className="w-full h-7 rounded border border-input bg-transparent px-2 py-0.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="mt-auto">
         <button
           onClick={handleLogout}

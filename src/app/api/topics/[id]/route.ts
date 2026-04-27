@@ -27,10 +27,12 @@ async function proxyFetch(url: string, init?: RequestInit): Promise<NextResponse
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  return proxyFetch(`${BASE}/notes/${id}`, { method: "PUT", body: JSON.stringify(body) });
+  return proxyFetch(`${BASE}/topics/${id}`, { method: "PUT", body: JSON.stringify(body) });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return proxyFetch(`${BASE}/notes/${id}`, { method: "DELETE" });
+  const migrate_to = req.nextUrl.searchParams.get("migrate_to");
+  const url = `${BASE}/topics/${id}${migrate_to ? `?migrate_to=${encodeURIComponent(migrate_to)}` : ""}`;
+  return proxyFetch(url, { method: "DELETE" });
 }

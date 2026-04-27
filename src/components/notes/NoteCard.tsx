@@ -1,12 +1,14 @@
 import Link from "next/link";
-import type { Note } from "@/types/api";
+import type { Note, Topic } from "@/types/api";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { TOPIC_DOT } from "@/components/notes/TopicFilter";
 
 function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-export function NoteCard({ note }: { note: Note }) {
+export function NoteCard({ note, topicColor }: { note: Note; topicColor?: string }) {
   const preview = stripHtml(note.content).slice(0, 100);
   const date = new Date(note.updated_at || note.created_at).toLocaleDateString();
   const displayTitle = note.title || "Untitled";
@@ -18,7 +20,12 @@ export function NoteCard({ note }: { note: Note }) {
           <h3 className="font-semibold text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
             {displayTitle}
           </h3>
-          <Badge variant="secondary" className="capitalize shrink-0 text-xs">{note.topic}</Badge>
+          <Badge variant="secondary" className="capitalize shrink-0 text-xs flex items-center gap-1">
+            {topicColor && (
+              <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", TOPIC_DOT[topicColor] ?? "bg-gray-400")} />
+            )}
+            {note.topic}
+          </Badge>
         </div>
         {preview && (
           <p className="text-xs text-muted-foreground line-clamp-3 flex-1">{preview}</p>
