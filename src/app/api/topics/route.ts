@@ -4,7 +4,7 @@ const BASE = process.env.BACKEND_URL!;
 const TOKEN = process.env.APP_API_TOKEN!;
 
 function backendHeaders() {
-  return { "X-API-Key": TOKEN, "Content-Type": "application/json" };
+  return { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" };
 }
 
 async function proxyFetch(url: string, init?: RequestInit): Promise<NextResponse> {
