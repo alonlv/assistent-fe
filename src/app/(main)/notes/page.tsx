@@ -8,7 +8,7 @@ import { NoteList } from "@/components/notes/NoteList";
 import { TopicFilter } from "@/components/notes/TopicFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { AlertCircle, Plus, Search } from "lucide-react";
 
 function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
@@ -23,7 +23,7 @@ function NotesPageInner() {
   const [newTopic, setNewTopic] = useState("");
   const [showTopicInput, setShowTopicInput] = useState(false);
 
-  const { data: notes = [], isLoading } = useNotes();
+  const { data: notes = [], isLoading, error: notesError } = useNotes();
   const { data: topics = [] } = useTopics();
   const createNote = useCreateNote();
 
@@ -89,6 +89,13 @@ function NotesPageInner() {
           </div>
         )}
       </div>
+
+      {notesError && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {notesError.message}
+        </div>
+      )}
 
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

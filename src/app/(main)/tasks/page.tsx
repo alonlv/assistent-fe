@@ -21,7 +21,7 @@ const FILTERS: Array<{ label: string; value: TaskStatus | "all" }> = [
 ];
 
 export default function TasksPage() {
-  const { data: tasks = [], isLoading } = useTasks();
+  const { data: tasks = [], isLoading, error: tasksError } = useTasks();
   const [view, setView] = useState<View>("list");
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
 
@@ -56,6 +56,13 @@ export default function TasksPage() {
           </Button>
         </div>
       </div>
+
+      {tasksError && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {tasksError.message}
+        </div>
+      )}
 
       {overdue.length > 0 && (
         <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
