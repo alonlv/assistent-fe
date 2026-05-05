@@ -1,0 +1,23 @@
+import { NextResponse } from "next/server";
+
+const BASE = process.env.BACKEND_URL!;
+const TOKEN = process.env.APP_API_TOKEN!;
+
+export async function proxyFetch(path: string, init?: RequestInit): Promise<NextResponse> {
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+    });
+    if (res.status === 204) return new NextResponse(null, { status: 204 });
+    const text = await res.text();
+    try {
+      return NextResponse.json(JSON.parse(text), { status: res.status });
+    } catch {
+      return new NextResponse(text, { status: res.status });
+    }
+  } catch (err) {
+    console.error("Backend unreachable:", err);
+    return NextResponse.json({ error: "Backend service unavailable." }, { status: 503 });
+  }
+}
