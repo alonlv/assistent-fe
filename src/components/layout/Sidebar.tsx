@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { FileText, CheckSquare, LogOut, Plus, Hash } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare, LogOut, Plus, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTopics, useCreateTopic } from "@/hooks/use-topics";
 import { TOPIC_DOT } from "@/components/notes/TopicFilter";
@@ -11,6 +11,7 @@ import { useState } from "react";
 const NAV_ITEMS = [
   { href: "/notes", label: "Notes", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/chat", label: "Chat", icon: MessageSquare },
 ];
 
 export function Sidebar() {

@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
-import { FileText, CheckSquare, LogOut } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/notes", label: "Notes", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/chat", label: "Chat", icon: MessageSquare },
 ];
 
 export function BottomNav() {
