@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Bell, Clock, RefreshCw, AlertCircle, Plus, Pencil, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Md } from "@/components/ui/md";
 import { cn } from "@/lib/utils";
 
 interface Reminder {
@@ -214,7 +215,7 @@ export default function RemindersPage() {
               <div key={r.id} className="flex items-start gap-3 rounded-lg border border-border p-4">
                 <Bell className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium leading-snug">{r.message}</p>
+                  <Md className="text-sm">{r.message}</Md>
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />

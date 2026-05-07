@@ -6,6 +6,7 @@ import { Trash2, Brain, Search, RefreshCw, AlertCircle, Plus, Pencil, X, Check }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Md } from "@/components/ui/md";
 
 interface Memory {
   id: string;
@@ -165,7 +166,7 @@ export default function MemoriesPage() {
               <div key={m.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
                 <Brain className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm leading-snug">{m.content}</p>
+                  <Md className="text-sm">{m.content}</Md>
                   {category && (
                     <Badge variant="secondary" className="mt-1.5 text-xs capitalize">
                       {category.toLowerCase()}

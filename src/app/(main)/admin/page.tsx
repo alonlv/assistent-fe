@@ -323,29 +323,42 @@ export default function AdminPage() {
               {
                 key: "prompt_core" as const,
                 label: "Core Behavior",
-                hint: "The agent's core personality and capabilities. Injected first in every system prompt.",
+                hint: "Injected first in every system prompt. Sets the agent's personality and capabilities.",
+                vars: [
+                  { name: "{agent_name}", resolved: config.agent_name, desc: "Agent's display name" },
+                  { name: "{agent_timezone}", resolved: config.agent_timezone, desc: "IANA timezone for date/time math" },
+                ],
+                position: "① First section",
               },
               {
                 key: "prompt_memory" as const,
                 label: "Memory Rules",
-                hint: "When and how the agent stores and retrieves long-term memories.",
+                hint: "Controls when the agent stores and retrieves long-term memories.",
+                vars: [],
+                position: "② Second section",
               },
               {
                 key: "prompt_proactive" as const,
                 label: "Proactive Tasks",
-                hint: "Instructions for running background intelligence tasks without a user prompt.",
+                hint: "Instructions for background intelligence tasks that run without a user prompt.",
+                vars: [],
+                position: "③ Third section",
               },
               {
                 key: "prompt_notes" as const,
                 label: "Notes Guidelines",
-                hint: "How the agent formats and organizes notes.",
+                hint: "Controls how the agent creates and formats notes and tasks.",
+                vars: [],
+                position: "④ Fourth section",
               },
             ] as const
-          ).map(({ key, label, hint }) => (
+          ).map(({ key, label, hint, vars, position }) => (
             <PromptCard
               key={key}
               label={label}
               hint={hint}
+              vars={vars as unknown as PromptVar[]}
+              position={position}
               value={config[key]}
               defaultValue={(defaults[key] as string) ?? ""}
               onChange={(v) => setConfig({ ...config, [key]: v })}
@@ -578,9 +591,17 @@ function ProviderCard({
 
 // ─── Prompt card ──────────────────────────────────────────────────────────────
 
+interface PromptVar {
+  name: string;
+  resolved: string;
+  desc: string;
+}
+
 function PromptCard({
   label,
   hint,
+  vars,
+  position,
   value,
   defaultValue,
   onChange,
@@ -589,6 +610,8 @@ function PromptCard({
 }: {
   label: string;
   hint: string;
+  vars: PromptVar[];
+  position: string;
   value: string;
   defaultValue: string;
   onChange: (v: string) => void;
@@ -596,8 +619,27 @@ function PromptCard({
   onReset: () => void;
 }) {
   const isDirty = value !== defaultValue && defaultValue !== "";
+
+  function insertAtCursor(e: React.MouseEvent<HTMLButtonElement>, snippet: string) {
+    e.preventDefault();
+    const ta = document.activeElement as HTMLTextAreaElement | null;
+    if (ta && ta.tagName === "TEXTAREA") {
+      const start = ta.selectionStart ?? value.length;
+      const end = ta.selectionEnd ?? value.length;
+      const next = value.slice(0, start) + snippet + value.slice(end);
+      onChange(next);
+      requestAnimationFrame(() => {
+        ta.selectionStart = ta.selectionEnd = start + snippet.length;
+        ta.focus();
+      });
+    } else {
+      onChange(value + snippet);
+    }
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card p-5">
+      {/* Header */}
       <div className="flex items-start justify-between mb-1">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
         {isDirty && (
@@ -607,11 +649,42 @@ function PromptCard({
         )}
       </div>
       <p className="text-xs text-muted-foreground mb-3">{hint}</p>
-      <p className="text-xs text-muted-foreground mb-2">
-        Placeholders:{" "}
-        <code className="bg-muted px-1 rounded">{"{agent_name}"}</code>{" "}
-        <code className="bg-muted px-1 rounded">{"{agent_timezone}"}</code>
-      </p>
+
+      {/* Inline reference panel */}
+      <div className="rounded-md bg-muted/50 border border-border px-3 py-2.5 mb-3 space-y-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Position</span>
+          <span className="text-xs text-foreground font-mono">{position}</span>
+          <span className="text-muted-foreground/40 text-xs">·</span>
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Format</span>
+          <span className="text-xs text-muted-foreground">plain text or Markdown</span>
+        </div>
+
+        {vars.length > 0 ? (
+          <div>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Available placeholders — click to insert
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {vars.map((v) => (
+                <button
+                  key={v.name}
+                  onMouseDown={(e) => insertAtCursor(e, v.name)}
+                  className="group flex items-baseline gap-1.5 rounded border border-dashed border-border bg-background px-2 py-1 hover:border-primary hover:bg-primary/5 transition-colors text-left"
+                >
+                  <code className="text-xs font-mono text-primary group-hover:text-primary">{v.name}</code>
+                  <span className="text-[10px] text-muted-foreground">→</span>
+                  <span className="text-[10px] text-foreground font-medium">{v.resolved || "—"}</span>
+                  <span className="text-[10px] text-muted-foreground hidden sm:inline">({v.desc})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No variable substitution in this section.</p>
+        )}
+      </div>
+
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -619,7 +692,7 @@ function PromptCard({
         className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm font-mono resize-y focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring leading-relaxed"
       />
       <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-muted-foreground">{value.length} chars</span>
+        <span className="text-xs text-muted-foreground">{value.length} chars · {value.split("\n").length} lines</span>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={onReset}>
             <RotateCcw className="h-3.5 w-3.5 mr-1" />

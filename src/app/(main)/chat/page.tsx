@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Md } from "@/components/ui/md";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -83,13 +84,17 @@ export default function ChatPage() {
             )}
             <div
               className={cn(
-                "rounded-2xl px-4 py-2.5 max-w-[80%] text-sm whitespace-pre-wrap",
+                "rounded-2xl px-4 py-2.5 max-w-[80%] text-sm",
                 msg.role === "user"
                   ? "bg-primary text-primary-foreground rounded-br-sm"
                   : "bg-muted text-foreground rounded-bl-sm"
               )}
             >
-              {msg.text}
+              {msg.role === "assistant" ? (
+                <Md className="text-sm">{msg.text}</Md>
+              ) : (
+                <span className="whitespace-pre-wrap">{msg.text}</span>
+              )}
             </div>
             {msg.role === "user" && (
               <div className="shrink-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center mt-0.5">
