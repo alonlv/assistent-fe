@@ -39,7 +39,19 @@ interface Toast {
   type: "success" | "error" | "info";
 }
 
-type Tab = "general" | "prompt" | "providers";
+interface Identity {
+  platform: string;
+  id: string;
+  label: string;
+}
+
+interface Contact {
+  name: string;
+  canonical_id: string;
+  identities: Identity[];
+}
+
+type Tab = "general" | "prompt" | "providers" | "contacts";
 
 const DEFAULT_PROVIDER: LlmProvider = {
   base_url: "",
@@ -87,6 +99,7 @@ export default function AdminPage() {
   const [config, setConfig] = useState<Config | null>(null);
   const [defaults, setDefaults] = useState<Partial<Config>>({});
   const [providers, setProviders] = useState<LlmProvider[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const { toasts, toast } = useToasts();
@@ -107,6 +120,7 @@ export default function AdminPage() {
         (cfgRes.effective.llm_providers ?? []).map((p) => ({ ...DEFAULT_PROVIDER, ...p }))
       );
       setDefaults(defsRes);
+      await loadContacts();
     } catch (e) {
       setFetchError((e as Error).message);
     } finally {
@@ -180,6 +194,70 @@ export default function AdminPage() {
     dragIdx.current = null;
   }
 
+  // ── Contacts helpers ──────────────────────────────────────────────────────
+  
+  async function loadContacts() {
+    try {
+      const res = await apiFetch<{ contacts: Contact[] }>("/api/admin/contacts");
+      setContacts(res.contacts || []);
+    } catch (e) {
+      toast(`Contacts load failed: ${(e as Error).message}`, "error");
+    }
+  }
+
+  async function addContact(name: string, canonicalId?: string) {
+    if (!name.trim()) { toast("Enter a name first", "error"); return; }
+    try {
+      await apiFetch("/api/admin/contacts", {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim(), canonical_id: canonicalId?.trim() || undefined }),
+      });
+      toast(`Contact "${name}" added`, "success");
+      await loadContacts();
+    } catch (e) { toast((e as Error).message, "error"); }
+  }
+
+  async function removeContact(canonicalId: string) {
+    if (!confirm(`Delete contact "${canonicalId}" and all its identities?`)) return;
+    try {
+      await apiFetch(`/api/admin/contacts/${encodeURIComponent(canonicalId)}`, { method: "DELETE" });
+      toast("Contact removed", "info");
+      await loadContacts();
+    } catch (e) { toast((e as Error).message, "error"); }
+  }
+
+  async function addIdentity(canonicalId: string, platform: string, id: string, label: string) {
+    if (!id.trim()) { toast("Platform ID is required", "error"); return; }
+    try {
+      await apiFetch(`/api/admin/contacts/${encodeURIComponent(canonicalId)}/identities`, {
+        method: "POST",
+        body: JSON.stringify({ platform: platform.trim(), id: id.trim(), label: label.trim() }),
+      });
+      toast(`Identity added`, "success");
+      await loadContacts();
+    } catch (e) { toast((e as Error).message, "error"); }
+  }
+
+  async function removeIdentity(platform: string, id: string) {
+    if (!confirm(`Remove identity (${platform}, ${id})?`)) return;
+    try {
+      await apiFetch("/api/admin/contacts/identities", {
+        method: "DELETE",
+        body: JSON.stringify({ platform, id }),
+      });
+      toast("Identity removed", "info");
+      await loadContacts();
+    } catch (e) { toast((e as Error).message, "error"); }
+  }
+
+  async function reloadContacts() {
+    try {
+      const r = await apiFetch<{ loaded: number }>("/api/admin/contacts/reload", { method: "POST" });
+      toast(`Reloaded ${r.loaded} contact(s) from disk`, "success");
+      await loadContacts();
+    } catch (e) { toast((e as Error).message, "error"); }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -214,8 +292,8 @@ export default function AdminPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-0 border-b border-border mb-6">
-        {(["general", "prompt", "providers"] as Tab[]).map((t) => (
+      <div className="flex gap-0 border-b border-border mb-6 overflow-x-auto hide-scrollbar">
+        {(["general", "prompt", "providers", "contacts"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -416,6 +494,68 @@ export default function AdminPage() {
               <Save className="h-3.5 w-3.5 mr-1.5" />
               Save all providers
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Contacts ────────────────────────────────────────────────────── */}
+      {tab === "contacts" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Map named persons to their platform identities. Identities are resolved
+              silently — the LLM never sees the mapping. All memories, sessions, reminders,
+              and notes are automatically unified under one <code className="bg-muted px-1 rounded">person:name</code> ID.
+            </p>
+            <Button size="sm" variant="outline" onClick={reloadContacts} title="Hot-reload contacts.json from disk">
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              Reload file
+            </Button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+            <input
+              type="text"
+              id="new-contact-name"
+              placeholder="Person name (e.g. alon)"
+              className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1"
+            />
+            <input
+              type="text"
+              id="new-contact-canon"
+              placeholder="canonical_id (optional)"
+              className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1"
+            />
+            <Button
+              size="sm"
+              onClick={() => {
+                const name = (document.getElementById("new-contact-name") as HTMLInputElement).value;
+                const canon = (document.getElementById("new-contact-canon") as HTMLInputElement).value;
+                addContact(name, canon).then(() => {
+                  (document.getElementById("new-contact-name") as HTMLInputElement).value = "";
+                  (document.getElementById("new-contact-canon") as HTMLInputElement).value = "";
+                });
+              }}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add person
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {contacts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No contacts yet. Add one above.</p>
+            ) : (
+              contacts.map((c) => (
+                <ContactCard
+                  key={c.canonical_id}
+                  contact={c}
+                  onRemove={() => removeContact(c.canonical_id)}
+                  onAddIdentity={(platform, id, label) => addIdentity(c.canonical_id, platform, id, label)}
+                  onRemoveIdentity={(platform, id) => removeIdentity(platform, id)}
+                />
+              ))
+            )}
           </div>
         </div>
       )}
@@ -842,6 +982,128 @@ function RoleBadge({ role }: { role: LlmProvider["role"] }) {
   return (
     <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0", colors[role])}>
       {role}
+    </span>
+  );
+}
+
+// ─── Contact card ─────────────────────────────────────────────────────────────
+
+function ContactCard({
+  contact: c,
+  onRemove,
+  onAddIdentity,
+  onRemoveIdentity,
+}: {
+  contact: Contact;
+  onRemove: () => void;
+  onAddIdentity: (platform: string, id: string, label: string) => void;
+  onRemoveIdentity: (platform: string, id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [newPlatform, setNewPlatform] = useState("telegram");
+  const [newId, setNewId] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+
+  return (
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div
+        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors select-none"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <span className="text-xl">👤</span>
+        <span className="font-semibold text-sm flex-1">{c.name}</span>
+        <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+          {c.canonical_id}
+        </span>
+        <span className="text-xs text-muted-foreground w-24 text-right">
+          {c.identities?.length || 0} identit{(c.identities?.length === 1) ? 'y' : 'ies'} ▾
+        </span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="text-muted-foreground hover:text-destructive transition-colors ml-2"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-border px-4 py-3 bg-muted/20">
+          {(c.identities || []).length === 0 ? (
+            <p className="text-xs text-muted-foreground mb-3">No identities yet.</p>
+          ) : (
+            <div className="space-y-2 mb-4">
+              {c.identities.map((id) => (
+                <div key={`${id.platform}-${id.id}`} className="flex items-center gap-2 text-sm border-b border-border pb-2 last:border-0 last:pb-0">
+                  <PlatformBadge platform={id.platform} />
+                  <span className="font-mono text-xs flex-1">{id.id}</span>
+                  <span className="text-xs text-muted-foreground w-24 truncate">{id.label}</span>
+                  <button
+                    onClick={() => onRemoveIdentity(id.platform, id.id)}
+                    className="text-muted-foreground hover:text-destructive transition-colors ml-1"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="pt-3 border-t border-dashed border-border mt-2">
+            <p className="text-xs text-muted-foreground mb-2">Add identity</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={newPlatform}
+                onChange={(e) => setNewPlatform(e.target.value)}
+                className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-w-[110px]"
+              >
+                <option value="telegram">Telegram</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="slack">Slack</option>
+                <option value="webex">Webex</option>
+              </select>
+              <input
+                type="text"
+                placeholder="User/Chat ID"
+                value={newId}
+                onChange={(e) => setNewId(e.target.value)}
+                className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1 min-w-[120px]"
+              />
+              <input
+                type="text"
+                placeholder="Label"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-24"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  onAddIdentity(newPlatform, newId, newLabel);
+                  setNewId("");
+                  setNewLabel("");
+                }}
+              >
+                <Plus className="h-3 w-3 mr-1" /> Add
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlatformBadge({ platform }: { platform: string }) {
+  const p = platform.toLowerCase();
+  const colors: Record<string, string> = {
+    telegram: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    whatsapp: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    slack: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
+    webex: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  };
+  return (
+    <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium tracking-wider uppercase", colors[p] || "bg-muted text-muted-foreground")}>
+      {platform}
     </span>
   );
 }
