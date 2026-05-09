@@ -25,7 +25,7 @@ export function useUpdateNote() {
     mutationFn: ({
       id,
       ...body
-    }: { id: string } & Partial<{ title: string; content: string; topic: string }>) =>
+    }: { id: string } & Partial<{ title: string; content: string; topic: string; user_id: string; authorized_ids: string[] }>) =>
       api.notes.update(id, body),
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["notes"] });

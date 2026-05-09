@@ -26,7 +26,7 @@ export const api = {
       apiFetch<Note[]>(`/api/notes${topic ? `?topic=${encodeURIComponent(topic)}` : ""}`),
     create: (body: { content?: string; topic: string; title?: string }) =>
       apiFetch<Note>("/api/notes", { method: "POST", body: JSON.stringify(body) }),
-    update: (id: string, body: Partial<{ title: string; content: string; topic: string }>) =>
+    update: (id: string, body: Partial<{ title: string; content: string; topic: string; user_id: string; authorized_ids: string[] }>) =>
       apiFetch<Note>(`/api/notes/${id}`, { method: "PUT", body: JSON.stringify(body) }),
     delete: (id: string) =>
       apiFetch<void>(`/api/notes/${id}`, { method: "DELETE" }),
@@ -44,6 +44,8 @@ export const api = {
         priority: Priority;
         due_date: string;
         clear_due_date: boolean;
+        user_id: string;
+        authorized_ids: string[];
       }>
     ) => apiFetch<Task>(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     delete: (id: string) =>
@@ -53,7 +55,7 @@ export const api = {
     list: () => apiFetch<Topic[]>("/api/topics"),
     create: (body: { name: string; color?: string }) =>
       apiFetch<Topic>("/api/topics", { method: "POST", body: JSON.stringify(body) }),
-    update: (id: string, body: Partial<{ name: string; color: string }>) =>
+    update: (id: string, body: Partial<{ name: string; color: string; user_id: string; authorized_ids: string[] }>) =>
       apiFetch<Topic>(`/api/topics/${id}`, { method: "PUT", body: JSON.stringify(body) }),
     delete: (id: string, migrateToId?: string) =>
       apiFetch<void>(

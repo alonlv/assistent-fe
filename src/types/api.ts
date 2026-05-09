@@ -1,6 +1,7 @@
 export interface Topic {
   id: string;
   person_id: string;
+  user_id: string;
   owner_id: string;
   name: string;
   color: string;
@@ -12,6 +13,7 @@ export interface Topic {
 export interface Note {
   id: string;
   person_id: string;
+  user_id: string;
   owner_id: string;
   title: string;
   content: string;
@@ -28,6 +30,7 @@ export type TaskStatus = "todo" | "in_progress" | "done";
 export interface Task {
   id: string;
   person_id: string;
+  user_id: string;
   owner_id: string;
   title: string;
   done: boolean;

@@ -22,7 +22,7 @@ export function useCreateTopic() {
 export function useUpdateTopic() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string } & Partial<{ name: string; color: string }>) =>
+    mutationFn: ({ id, ...body }: { id: string } & Partial<{ name: string; color: string; user_id: string; authorized_ids: string[] }>) =>
       api.topics.update(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["topics"] });

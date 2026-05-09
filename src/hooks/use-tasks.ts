@@ -26,6 +26,8 @@ type TaskUpdateArgs = { id: string } & Partial<{
   priority: Priority;
   due_date: string;
   clear_due_date: boolean;
+  user_id: string;
+  authorized_ids: string[];
 }>;
 
 export function useUpdateTask() {

@@ -51,7 +51,7 @@ interface Contact {
   identities: Identity[];
 }
 
-type Tab = "general" | "prompt" | "providers" | "contacts";
+type Tab = "general" | "prompt" | "providers" | "contacts" | "data";
 
 const DEFAULT_PROVIDER: LlmProvider = {
   base_url: "",
@@ -293,7 +293,7 @@ export default function AdminPage() {
 
       {/* Tab bar */}
       <div className="flex gap-0 border-b border-border mb-6 overflow-x-auto hide-scrollbar">
-        {(["general", "prompt", "providers", "contacts"] as Tab[]).map((t) => (
+        {(["general", "prompt", "providers", "contacts", "data"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -557,6 +557,17 @@ export default function AdminPage() {
               ))
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Data Management ────────────────────────────────────────────────── */}
+      {tab === "data" && (
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Manage user data associations. View and edit user IDs and authorized users for all data types.
+            Use this to reassign data ownership or modify access permissions.
+          </p>
+          <DataManager />
         </div>
       )}
 
@@ -1087,6 +1098,198 @@ function ContactCard({
               </Button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DataManager() {
+  const [userId, setUserId] = useState("");
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToasts();
+
+  async function loadUserData() {
+    if (!userId.trim()) {
+      toast("Enter a user ID first", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/admin/user-data/${encodeURIComponent(userId.trim())}`);
+      setData(res);
+    } catch (e) {
+      toast((e as Error).message, "error");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updateData(type: string, id: string, updates: any) {
+    try {
+      const endpoint = type === 'notes' ? `/api/notes/${id}` :
+                      type === 'tasks' ? `/api/tasks/${id}` :
+                      type === 'topics' ? `/api/topics/${id}` : null;
+      if (!endpoint) return;
+
+      await apiFetch(endpoint, { method: "PUT", body: JSON.stringify(updates) });
+      toast("Updated successfully", "success");
+      loadUserData(); // Refresh data
+    } catch (e) {
+      toast((e as Error).message, "error");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="Enter user ID (e.g. person:alon)"
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+          className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+        <Button onClick={loadUserData} disabled={loading}>
+          {loading ? "Loading…" : "Load Data"}
+        </Button>
+      </div>
+
+      {data && (
+        <div className="space-y-6">
+          {/* Notes */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">Notes ({data.notes?.length || 0})</h3>
+            <div className="space-y-2">
+              {data.notes?.map((note: any) => (
+                <DataItem
+                  key={note.id}
+                  type="note"
+                  item={note}
+                  onUpdate={(updates) => updateData('notes', note.id, updates)}
+                />
+              )) || <p className="text-sm text-muted-foreground">No notes</p>}
+            </div>
+          </div>
+
+          {/* Tasks */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">Tasks ({data.tasks?.length || 0})</h3>
+            <div className="space-y-2">
+              {data.tasks?.map((task: any) => (
+                <DataItem
+                  key={task.id}
+                  type="task"
+                  item={task}
+                  onUpdate={(updates) => updateData('tasks', task.id, updates)}
+                />
+              )) || <p className="text-sm text-muted-foreground">No tasks</p>}
+            </div>
+          </div>
+
+          {/* Topics */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">Topics ({data.topics?.length || 0})</h3>
+            <div className="space-y-2">
+              {data.topics?.map((topic: any) => (
+                <DataItem
+                  key={topic.id}
+                  type="topic"
+                  item={topic}
+                  onUpdate={(updates) => updateData('topics', topic.id, updates)}
+                />
+              )) || <p className="text-sm text-muted-foreground">No topics</p>}
+            </div>
+          </div>
+
+          {/* Memories */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">Memories ({data.memories?.length || 0})</h3>
+            <div className="space-y-2">
+              {data.memories?.slice(0, 10).map((memory: any, idx: number) => (
+                <div key={idx} className="rounded border p-3 text-sm">
+                  <p className="text-xs text-muted-foreground mb-1">ID: {memory.id}</p>
+                  <p>{memory.content}</p>
+                </div>
+              )) || <p className="text-sm text-muted-foreground">No memories</p>}
+              {data.memories?.length > 10 && (
+                <p className="text-xs text-muted-foreground">... and {data.memories.length - 10} more</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DataItem({ type, item, onUpdate }: { type: string; item: any; onUpdate: (updates: any) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [userId, setUserId] = useState(item.user_id || "");
+  const [authorizedIds, setAuthorizedIds] = useState(item.authorized_ids?.join(", ") || "");
+
+  function handleSave() {
+    const updates: any = {};
+    if (userId !== item.user_id) updates.user_id = userId;
+    const authIds = authorizedIds.split(",").map((s: string) => s.trim()).filter(Boolean);
+    if (JSON.stringify(authIds) !== JSON.stringify(item.authorized_ids)) {
+      updates.authorized_ids = authIds;
+    }
+    if (Object.keys(updates).length > 0) {
+      onUpdate(updates);
+    }
+    setEditing(false);
+  }
+
+  return (
+    <div className="rounded border p-3">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">
+            {type === 'note' ? item.title || 'Untitled' : item.title || item.name}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            ID: {item.id} | Owner: {item.owner_id}
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setEditing(!editing)}>
+          {editing ? "Cancel" : "Edit"}
+        </Button>
+      </div>
+
+      {editing ? (
+        <div className="space-y-2">
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">User ID</label>
+            <input
+              type="text"
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
+              placeholder="e.g. person:alon"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">Authorized IDs (comma-separated)</label>
+            <input
+              type="text"
+              value={authorizedIds}
+              onChange={(e) => setAuthorizedIds(e.target.value)}
+              className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
+              placeholder="person:alon, person:other"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleSave}>Save</Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="text-xs text-muted-foreground">
+          <p>User ID: {item.user_id || 'none'}</p>
+          <p>Authorized: {item.authorized_ids?.join(", ") || 'none'}</p>
         </div>
       )}
     </div>
