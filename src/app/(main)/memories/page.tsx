@@ -7,13 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Md } from "@/components/ui/md";
-
-interface Memory {
-  id: string;
-  content: string;
-  metadata: Record<string, unknown>;
-  score: number;
-}
+import type { Memory } from "@/types/api";
 
 type EditState = { content: string; category: string };
 

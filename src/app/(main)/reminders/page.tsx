@@ -7,16 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Md } from "@/components/ui/md";
 import { cn } from "@/lib/utils";
-
-interface Reminder {
-  id: string;
-  message: string;
-  platform: string;
-  user_id: string;
-  channel_id: string;
-  run_at: string | null;
-  cron: string | null;
-}
+import type { Reminder } from "@/types/api";
 
 const PLATFORMS = ["telegram", "slack", "webex", "whatsapp"];
 

@@ -7,17 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Md } from "@/components/ui/md";
 import { cn } from "@/lib/utils";
-
-interface ProactiveTask {
-  id: string;
-  instruction: string;
-  platform: string;
-  user_id: string;
-  channel_id: string;
-  run_at: string | null;
-  cron: string | null;
-  last_run_at: string | null;
-}
+import type { ProactiveTask } from "@/types/api";
 
 const PLATFORMS = ["telegram", "slack", "webex", "whatsapp"];
 
