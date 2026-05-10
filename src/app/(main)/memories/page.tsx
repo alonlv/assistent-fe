@@ -155,7 +155,7 @@ export default function MemoriesPage() {
       {showAdd && (
         <div className="mb-4">
           <MemoryForm
-            initial={{ content: "", category: "", authorized_ids: [] }}
+            initial={{ content: "", category: "", authorized_ids: selectedUserId ? [selectedUserId] : [] }}
             onSave={(s) => create.mutate({ content: s.content, category: s.category || undefined, user_id: s.authorized_ids[0] || undefined, authorized_ids: s.authorized_ids })}
             onCancel={() => setShowAdd(false)}
             saving={create.isPending}
