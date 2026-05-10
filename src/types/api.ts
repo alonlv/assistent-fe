@@ -80,4 +80,5 @@ export interface Memory {
   content: string;
   metadata: Record<string, unknown>;
   score: number;
+  authorized_ids?: string[];
 }

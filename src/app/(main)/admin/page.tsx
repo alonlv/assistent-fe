@@ -49,6 +49,7 @@ interface Contact {
   name: string;
   canonical_id: string;
   identities: Identity[];
+  primary_channel?: { platform: string; channel_id: string };
 }
 
 type Tab = "general" | "prompt" | "providers" | "contacts" | "data";
@@ -248,6 +249,17 @@ export default function AdminPage() {
         body: JSON.stringify({ platform, id }),
       });
       toast("Identity removed", "info");
+      await loadContacts();
+    } catch (e) { toast((e as Error).message, "error"); }
+  }
+
+  async function setPrimaryChannel(canonicalId: string, platform: string, channelId: string) {
+    try {
+      await apiFetch(`/api/admin/contacts/${encodeURIComponent(canonicalId)}/channel`, {
+        method: "POST",
+        body: JSON.stringify({ platform, channel_id: channelId }),
+      });
+      toast("Primary channel set", "success");
       await loadContacts();
     } catch (e) { toast((e as Error).message, "error"); }
   }
@@ -555,6 +567,7 @@ export default function AdminPage() {
                   onRemove={() => removeContact(c.canonical_id)}
                   onAddIdentity={(platform, id, label) => addIdentity(c.canonical_id, platform, id, label)}
                   onRemoveIdentity={(platform, id) => removeIdentity(platform, id)}
+                  onSetPrimaryChannel={(platform, channelId) => setPrimaryChannel(c.canonical_id, platform, channelId)}
                 />
               ))
             )}
@@ -1006,16 +1019,20 @@ function ContactCard({
   onRemove,
   onAddIdentity,
   onRemoveIdentity,
+  onSetPrimaryChannel,
 }: {
   contact: Contact;
   onRemove: () => void;
   onAddIdentity: (platform: string, id: string, label: string) => void;
   onRemoveIdentity: (platform: string, id: string) => void;
+  onSetPrimaryChannel: (platform: string, channelId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [newPlatform, setNewPlatform] = useState("telegram");
   const [newId, setNewId] = useState("");
   const [newLabel, setNewLabel] = useState("");
+  const [channelPlatform, setChannelPlatform] = useState("telegram");
+  const [channelId, setChannelId] = useState("");
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -1097,6 +1114,48 @@ function ContactCard({
                 }}
               >
                 <Plus className="h-3 w-3 mr-1" /> Add
+              </Button>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-dashed border-border mt-2">
+            <p className="text-xs text-muted-foreground mb-1">Primary channel</p>
+            {c.primary_channel ? (
+              <p className="text-xs font-mono text-muted-foreground mb-2">
+                Current: <span className="text-foreground">{c.primary_channel.platform} / {c.primary_channel.channel_id}</span>
+              </p>
+            ) : (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">
+                No channel set — user will be blocked on platforms where channel ID ≠ user ID (Slack, Webex, group chats).
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={channelPlatform}
+                onChange={(e) => setChannelPlatform(e.target.value)}
+                className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-w-[110px]"
+              >
+                <option value="telegram">Telegram</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="slack">Slack</option>
+                <option value="webex">Webex</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Channel / Chat ID"
+                value={channelId}
+                onChange={(e) => setChannelId(e.target.value)}
+                className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1 min-w-[120px]"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (!channelId.trim()) return;
+                  onSetPrimaryChannel(channelPlatform, channelId.trim());
+                  setChannelId("");
+                }}
+              >
+                Set channel
               </Button>
             </div>
           </div>

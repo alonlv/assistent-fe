@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Md } from "@/components/ui/md";
 import { cn } from "@/lib/utils";
 import type { ProactiveTask } from "@/types/api";
+import { useContacts } from "@/hooks/use-contacts";
 
 const PLATFORMS = ["telegram", "slack", "webex", "whatsapp"];
 
@@ -15,6 +16,7 @@ const EMPTY_FORM = {
   instruction: "",
   platform: "telegram",
   channel_id: "",
+  authorized_ids: [] as string[],
   scheduleType: "cron" as "once" | "cron",
   run_at: "",
   cron: "",
@@ -27,14 +29,23 @@ function MonitorForm({
   onSave,
   onCancel,
   saving,
+  contacts,
 }: {
   initial: FormState;
   onSave: (f: FormState) => void;
   onCancel: () => void;
   saving: boolean;
+  contacts: Array<{ canonical_id: string; name: string }>;
 }) {
   const [f, setF] = useState(initial);
-  const set = (k: keyof FormState, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const set = (k: keyof Omit<FormState, "authorized_ids">, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const togglePerson = (id: string) =>
+    setF((p) => ({
+      ...p,
+      authorized_ids: p.authorized_ids.includes(id)
+        ? p.authorized_ids.filter((x) => x !== id)
+        : [...p.authorized_ids, id],
+    }));
 
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
@@ -64,6 +75,24 @@ function MonitorForm({
           <Input value={f.channel_id} onChange={(e) => set("channel_id", e.target.value)} placeholder="e.g. 123456789" />
         </div>
       </div>
+      {contacts.length > 0 && (
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">People</label>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            {contacts.map((c) => (
+              <label key={c.canonical_id} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={f.authorized_ids.includes(c.canonical_id)}
+                  onChange={() => togglePerson(c.canonical_id)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                {c.name}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       <div>
         <label className="text-xs text-muted-foreground mb-1 block">Schedule</label>
         <div className="flex gap-2 mb-2">
@@ -104,17 +133,22 @@ function formToPayload(f: FormState) {
     instruction: f.instruction,
     platform: f.platform,
     channel_id: f.channel_id,
-    user_id: "web-user",
+    user_id: f.authorized_ids[0] || "web-user",
+    authorized_ids: f.authorized_ids,
     run_at: f.scheduleType === "once" && f.run_at ? new Date(f.run_at).toISOString() : null,
     cron: f.scheduleType === "cron" && f.cron ? f.cron : null,
   };
 }
 
 function taskToForm(t: ProactiveTask): FormState {
+  const ids = t.authorized_ids?.length
+    ? t.authorized_ids
+    : t.user_id && t.user_id !== "web-user" ? [t.user_id] : [];
   return {
     instruction: t.instruction,
     platform: t.platform,
     channel_id: t.channel_id,
+    authorized_ids: ids,
     scheduleType: t.cron ? "cron" : "once",
     run_at: t.run_at ? new Date(t.run_at).toISOString().slice(0, 16) : "",
     cron: t.cron ?? "",
@@ -131,6 +165,7 @@ export default function ProactiveTasksPage() {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const { data: contacts = [] } = useContacts();
 
   const { data: tasks = [], isLoading, error } = useQuery<ProactiveTask[]>({
     queryKey: ["proactive-tasks"],
@@ -182,6 +217,7 @@ export default function ProactiveTasksPage() {
             onSave={(f) => create.mutate(formToPayload(f))}
             onCancel={() => setShowAdd(false)}
             saving={create.isPending}
+            contacts={contacts}
           />
         </div>
       )}
@@ -205,6 +241,7 @@ export default function ProactiveTasksPage() {
                 onSave={(f) => update.mutate({ id: t.id, body: formToPayload(f) })}
                 onCancel={() => setEditId(null)}
                 saving={update.isPending}
+                contacts={contacts}
               />
             ) : (
               <div key={t.id} className="flex items-start gap-3 rounded-lg border border-border p-4">
@@ -219,11 +256,12 @@ export default function ProactiveTasksPage() {
                     {t.last_run_at && (
                       <span className="opacity-60">Last ran {new Date(t.last_run_at).toLocaleString()}</span>
                     )}
-                    {(t.owner_id || t.user_id || t.person_id) && (
-                      <span className="opacity-50 truncate" title={t.owner_id || t.user_id || t.person_id}>
-                        {(t.owner_id || t.user_id || t.person_id || "").replace(/^person:/, "")}
-                      </span>
-                    )}
+                    {(() => {
+                      const ids = t.authorized_ids?.length ? t.authorized_ids : (t.owner_id || t.user_id) ? [t.owner_id || t.user_id] : [];
+                      if (!ids.length) return null;
+                      const names = ids.map((id) => contacts.find((c) => c.canonical_id === id)?.name ?? id.replace(/^person:/, ""));
+                      return <span className="opacity-50 truncate">{names.join(", ")}</span>;
+                    })()}
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"

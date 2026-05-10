@@ -8,21 +8,31 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Md } from "@/components/ui/md";
 import type { Memory } from "@/types/api";
+import { useContacts } from "@/hooks/use-contacts";
 
-type EditState = { content: string; category: string };
+type EditState = { content: string; category: string; authorized_ids: string[] };
 
 function MemoryForm({
   initial,
   onSave,
   onCancel,
   saving,
+  contacts,
 }: {
   initial: EditState;
   onSave: (s: EditState) => void;
   onCancel: () => void;
   saving: boolean;
+  contacts: Array<{ canonical_id: string; name: string }>;
 }) {
   const [s, setS] = useState(initial);
+  const togglePerson = (id: string) =>
+    setS((p) => ({
+      ...p,
+      authorized_ids: p.authorized_ids.includes(id)
+        ? p.authorized_ids.filter((x) => x !== id)
+        : [...p.authorized_ids, id],
+    }));
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
       <div>
@@ -43,6 +53,24 @@ function MemoryForm({
           placeholder="e.g. preference, fact, context…"
         />
       </div>
+      {contacts.length > 0 && (
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">People</label>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            {contacts.map((c) => (
+              <label key={c.canonical_id} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={s.authorized_ids.includes(c.canonical_id)}
+                  onChange={() => togglePerson(c.canonical_id)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                {c.name}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex gap-2 justify-end">
         <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
           <X className="h-3.5 w-3.5 mr-1" /> Cancel
@@ -61,6 +89,7 @@ export default function MemoriesPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const qc = useQueryClient();
+  const { data: contacts = [] } = useContacts();
 
   const { data: memories = [], isLoading, error } = useQuery<Memory[]>({
     queryKey: ["memories", submitted],
@@ -114,10 +143,11 @@ export default function MemoriesPage() {
       {showAdd && (
         <div className="mb-4">
           <MemoryForm
-            initial={{ content: "", category: "" }}
-            onSave={(s) => create.mutate({ content: s.content, category: s.category || undefined })}
+            initial={{ content: "", category: "", authorized_ids: [] }}
+            onSave={(s) => create.mutate({ content: s.content, category: s.category || undefined, user_id: s.authorized_ids[0] || undefined, authorized_ids: s.authorized_ids })}
             onCancel={() => setShowAdd(false)}
             saving={create.isPending}
+            contacts={contacts}
           />
         </div>
       )}
@@ -151,10 +181,11 @@ export default function MemoriesPage() {
             return editId === m.id ? (
               <MemoryForm
                 key={m.id}
-                initial={{ content: m.content, category: category ?? "" }}
-                onSave={(s) => update.mutate({ id: m.id, body: { content: s.content, category: s.category || undefined } })}
+                initial={{ content: m.content, category: category ?? "", authorized_ids: m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [] }}
+                onSave={(s) => update.mutate({ id: m.id, body: { content: s.content, category: s.category || undefined, user_id: s.authorized_ids[0] || undefined, authorized_ids: s.authorized_ids } })}
                 onCancel={() => setEditId(null)}
                 saving={update.isPending}
+                contacts={contacts}
               />
             ) : (
               <div key={m.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
@@ -167,11 +198,12 @@ export default function MemoriesPage() {
                         {category.toLowerCase()}
                       </Badge>
                     )}
-                    {(m.owner_id || m.user_id || m.person_id) && (
-                      <span className="text-xs text-muted-foreground/50 truncate" title={m.owner_id || m.user_id || m.person_id}>
-                        {(m.owner_id || m.user_id || m.person_id || "").replace(/^person:/, "")}
-                      </span>
-                    )}
+                    {(() => {
+                      const ids = m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [];
+                      if (!ids.length) return null;
+                      const names = ids.map((id) => contacts.find((c) => c.canonical_id === id)?.name ?? id.replace(/^person:/, ""));
+                      return <span className="text-xs text-muted-foreground/50 truncate">{names.join(", ")}</span>;
+                    })()}
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"

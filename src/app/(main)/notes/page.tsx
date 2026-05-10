@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import { useNotes, useCreateNote } from "@/hooks/use-notes";
-import { useTopics } from "@/hooks/use-topics";
+import { useTopics, useUpdateTopic, useDeleteTopic } from "@/hooks/use-topics";
 import { NoteList } from "@/components/notes/NoteList";
 import { TopicFilter } from "@/components/notes/TopicFilter";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,8 @@ function NotesPageInner() {
   const { data: notes = [], isLoading, error: notesError } = useNotes();
   const { data: topics = [] } = useTopics();
   const createNote = useCreateNote();
+  const updateTopic = useUpdateTopic();
+  const deleteTopic = useDeleteTopic();
 
   function handleSelectTopic(topic: string | null) {
     if (topic) {
@@ -109,7 +111,20 @@ function NotesPageInner() {
 
       {topics.length > 0 && (
         <div className="mb-4">
-          <TopicFilter topics={topics} selected={selectedTopic} onSelect={handleSelectTopic} />
+          <TopicFilter
+            topics={topics}
+            selected={selectedTopic}
+            onSelect={handleSelectTopic}
+            onEdit={(id, name, color) => updateTopic.mutate({ id, name, color })}
+            onDelete={(id) => {
+              if (confirm("Delete this topic and all its notes?")) {
+                deleteTopic.mutate({ id });
+                if (selectedTopic === topics.find(t => t.id === id)?.name) {
+                  router.push("/notes");
+                }
+              }
+            }}
+          />
         </div>
       )}
 
