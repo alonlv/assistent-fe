@@ -45,10 +45,7 @@ export function useDeleteNote() {
 export function useNote(id: string) {
   return useQuery({
     queryKey: ["note", id],
-    queryFn: async () => {
-      const notes = await api.notes.list();
-      return notes.find((n) => n.id === id) ?? null;
-    },
+    queryFn: () => api.notes.get(id),
     enabled: Boolean(id),
   });
 }

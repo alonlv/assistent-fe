@@ -100,6 +100,8 @@ export default function AdminPage() {
   const [defaults, setDefaults] = useState<Partial<Config>>({});
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [newContactName, setNewContactName] = useState("");
+  const [newContactCanon, setNewContactCanon] = useState("");
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const { toasts, toast } = useToasts();
@@ -516,24 +518,24 @@ export default function AdminPage() {
           <div className="flex flex-col sm:flex-row gap-2 mb-4">
             <input
               type="text"
-              id="new-contact-name"
+              value={newContactName}
+              onChange={(e) => setNewContactName(e.target.value)}
               placeholder="Person name (e.g. alon)"
               className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1"
             />
             <input
               type="text"
-              id="new-contact-canon"
+              value={newContactCanon}
+              onChange={(e) => setNewContactCanon(e.target.value)}
               placeholder="canonical_id (optional)"
               className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1"
             />
             <Button
               size="sm"
               onClick={() => {
-                const name = (document.getElementById("new-contact-name") as HTMLInputElement).value;
-                const canon = (document.getElementById("new-contact-canon") as HTMLInputElement).value;
-                addContact(name, canon).then(() => {
-                  (document.getElementById("new-contact-name") as HTMLInputElement).value = "";
-                  (document.getElementById("new-contact-canon") as HTMLInputElement).value = "";
+                addContact(newContactName, newContactCanon).then(() => {
+                  setNewContactName("");
+                  setNewContactCanon("");
                 });
               }}
             >

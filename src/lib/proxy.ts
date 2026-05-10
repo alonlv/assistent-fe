@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 
-const BASE = process.env.BACKEND_URL!;
-const TOKEN = process.env.APP_API_TOKEN!;
+const BASE = process.env.BACKEND_URL;
+const TOKEN = process.env.APP_API_TOKEN;
+
+if (!BASE || !TOKEN) {
+  throw new Error(
+    "Missing required environment variables: BACKEND_URL and APP_API_TOKEN must both be set"
+  );
+}
 
 export async function proxyFetch(path: string, init?: RequestInit): Promise<NextResponse> {
   try {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${BASE!}${path}`, {
       ...init,
-      headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${TOKEN!}`, "Content-Type": "application/json" },
     });
     if (res.status === 204) return new NextResponse(null, { status: 204 });
     const text = await res.text();

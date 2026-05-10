@@ -24,12 +24,14 @@ export const api = {
   notes: {
     list: (topic?: string) =>
       apiFetch<Note[]>(`/api/notes${topic ? `?topic=${encodeURIComponent(topic)}` : ""}`),
+    get: (id: string) =>
+      apiFetch<Note>(`/api/notes/${encodeURIComponent(id)}`),
     create: (body: { content?: string; topic: string; title?: string }) =>
       apiFetch<Note>("/api/notes", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<{ title: string; content: string; topic: string; user_id: string; authorized_ids: string[] }>) =>
-      apiFetch<Note>(`/api/notes/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+      apiFetch<Note>(`/api/notes/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     delete: (id: string) =>
-      apiFetch<void>(`/api/notes/${id}`, { method: "DELETE" }),
+      apiFetch<void>(`/api/notes/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   tasks: {
     list: () => apiFetch<Task[]>("/api/tasks"),
