@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Md } from "@/components/ui/md";
 import type { Memory } from "@/types/api";
 import { useContacts } from "@/hooks/use-contacts";
+import { useSelectedUser } from "@/context/user-context";
 
 type EditState = { content: string; category: string; authorized_ids: string[] };
 
@@ -90,11 +91,17 @@ export default function MemoriesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const qc = useQueryClient();
   const { data: contacts = [] } = useContacts();
+  const { selectedUserId, selectedUserName } = useSelectedUser();
 
   const { data: memories = [], isLoading, error } = useQuery<Memory[]>({
-    queryKey: ["memories", submitted],
-    queryFn: () =>
-      fetch(`/api/memories${submitted ? `?q=${encodeURIComponent(submitted)}` : ""}`).then((r) => r.json()),
+    queryKey: ["memories", submitted, selectedUserId],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (submitted) params.set("q", submitted);
+      if (selectedUserId) params.set("user_id", selectedUserId);
+      const qs = params.toString();
+      return fetch(`/api/memories${qs ? `?${qs}` : ""}`).then((r) => r.json());
+    },
   });
 
   const create = useMutation({
@@ -122,7 +129,12 @@ export default function MemoriesPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Memory</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Memory</h1>
+          {selectedUserName && (
+            <p className="text-xs text-primary mt-0.5">Viewing {selectedUserName}&apos;s memory</p>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["memories"] })}>
             <RefreshCw className="h-4 w-4" />

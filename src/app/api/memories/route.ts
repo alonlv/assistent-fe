@@ -3,7 +3,12 @@ import { proxyFetch } from "@/lib/proxy";
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q") ?? "";
-  return proxyFetch(`/memories${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+  const userId = req.nextUrl.searchParams.get("user_id") ?? "";
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (userId) params.set("user_id", userId);
+  const qs = params.toString();
+  return proxyFetch(`/memories${qs ? `?${qs}` : ""}`);
 }
 
 export async function POST(req: NextRequest) {

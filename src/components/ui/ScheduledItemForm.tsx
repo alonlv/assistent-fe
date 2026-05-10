@@ -44,6 +44,13 @@ export function scheduledFormToPayload(
   };
 }
 
+/** Format a UTC Date as "YYYY-MM-DDTHH:MM" in the browser's local timezone,
+ *  which is the value format expected by <input type="datetime-local">. */
+function toLocalDateTimeInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function scheduledItemToForm(
   item: { platform: string; channel_id: string; authorized_ids?: string[]; user_id?: string; cron?: string | null; run_at?: string | null },
   textValue: string
@@ -57,7 +64,7 @@ export function scheduledItemToForm(
     channel_id: item.channel_id,
     authorized_ids: ids,
     scheduleType: item.cron ? "cron" : "once",
-    run_at: item.run_at ? new Date(item.run_at).toISOString().slice(0, 16) : "",
+    run_at: item.run_at ? toLocalDateTimeInput(new Date(item.run_at)) : "",
     cron: item.cron ?? "",
   };
 }

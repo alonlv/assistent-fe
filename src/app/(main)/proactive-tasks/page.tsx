@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/ScheduledItemForm";
 import type { ProactiveTask } from "@/types/api";
 import { useContacts } from "@/hooks/use-contacts";
+import { useSelectedUser } from "@/context/user-context";
 
 const EMPTY_MONITOR_FORM: ScheduledFormState = { ...EMPTY_SCHEDULED_FORM, scheduleType: "cron" };
 
@@ -23,10 +24,11 @@ export default function ProactiveTasksPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const { data: contacts = [] } = useContacts();
+  const { selectedUserId, selectedUserName } = useSelectedUser();
 
   const { data: tasks = [], isLoading, error } = useQuery<ProactiveTask[]>({
-    queryKey: ["proactive-tasks"],
-    queryFn: () => fetch("/api/proactive-tasks").then((r) => r.json()),
+    queryKey: ["proactive-tasks", selectedUserId],
+    queryFn: () => fetch(`/api/proactive-tasks${selectedUserId ? `?user_id=${encodeURIComponent(selectedUserId)}` : ""}`).then((r) => r.json()),
   });
 
   const create = useMutation({
@@ -53,7 +55,12 @@ export default function ProactiveTasksPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Monitors</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Monitors</h1>
+          {selectedUserName && (
+            <p className="text-xs text-primary mt-0.5">Viewing {selectedUserName}&apos;s monitors</p>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["proactive-tasks"] })}>
             <RefreshCw className="h-4 w-4" />

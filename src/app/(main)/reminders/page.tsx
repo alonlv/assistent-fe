@@ -15,16 +15,18 @@ import {
 } from "@/components/ui/ScheduledItemForm";
 import type { Reminder } from "@/types/api";
 import { useContacts } from "@/hooks/use-contacts";
+import { useSelectedUser } from "@/context/user-context";
 
 export default function RemindersPage() {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const { data: contacts = [] } = useContacts();
+  const { selectedUserId, selectedUserName } = useSelectedUser();
 
   const { data: reminders = [], isLoading, error } = useQuery<Reminder[]>({
-    queryKey: ["reminders"],
-    queryFn: () => fetch("/api/reminders").then((r) => r.json()),
+    queryKey: ["reminders", selectedUserId],
+    queryFn: () => fetch(`/api/reminders${selectedUserId ? `?user_id=${encodeURIComponent(selectedUserId)}` : ""}`).then((r) => r.json()),
   });
 
   const create = useMutation({
@@ -51,7 +53,12 @@ export default function RemindersPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Reminders</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Reminders</h1>
+          {selectedUserName && (
+            <p className="text-xs text-primary mt-0.5">Viewing {selectedUserName}&apos;s reminders</p>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["reminders"] })}>
             <RefreshCw className="h-4 w-4" />
