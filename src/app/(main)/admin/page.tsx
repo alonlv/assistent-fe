@@ -1110,7 +1110,14 @@ function DataManager() {
   const [userId, setUserId] = useState("");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const { toast } = useToasts();
+
+  useEffect(() => {
+    apiFetch<{ contacts: Contact[] }>("/api/admin/contacts")
+      .then((r) => setAllContacts(r.contacts || []))
+      .catch(() => {});
+  }, []);
 
   async function loadUserData() {
     if (!userId.trim()) {
@@ -1147,13 +1154,28 @@ function DataManager() {
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        <input
-          type="text"
-          placeholder="Enter user ID (e.g. person:alon)"
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-          className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        />
+        {allContacts.length > 0 ? (
+          <select
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Select a person…</option>
+            {allContacts.map((c) => (
+              <option key={c.canonical_id} value={c.canonical_id}>
+                {c.name} ({c.canonical_id})
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            placeholder="Enter user ID (e.g. person:alon)"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        )}
         <Button onClick={loadUserData} disabled={loading}>
           {loading ? "Loading…" : "Load Data"}
         </Button>
@@ -1170,6 +1192,7 @@ function DataManager() {
                   key={note.id}
                   type="note"
                   item={note}
+                  contacts={allContacts}
                   onUpdate={(updates) => updateData('notes', note.id, updates)}
                 />
               )) || <p className="text-sm text-muted-foreground">No notes</p>}
@@ -1185,6 +1208,7 @@ function DataManager() {
                   key={task.id}
                   type="task"
                   item={task}
+                  contacts={allContacts}
                   onUpdate={(updates) => updateData('tasks', task.id, updates)}
                 />
               )) || <p className="text-sm text-muted-foreground">No tasks</p>}
@@ -1200,6 +1224,7 @@ function DataManager() {
                   key={topic.id}
                   type="topic"
                   item={topic}
+                  contacts={allContacts}
                   onUpdate={(updates) => updateData('topics', topic.id, updates)}
                 />
               )) || <p className="text-sm text-muted-foreground">No topics</p>}
@@ -1227,7 +1252,7 @@ function DataManager() {
   );
 }
 
-function DataItem({ type, item, onUpdate }: { type: string; item: any; onUpdate: (updates: any) => void }) {
+function DataItem({ type, item, contacts, onUpdate }: { type: string; item: any; contacts: Contact[]; onUpdate: (updates: any) => void }) {
   const [editing, setEditing] = useState(false);
   const [userId, setUserId] = useState(item.user_id || "");
   const [authorizedIds, setAuthorizedIds] = useState(item.authorized_ids?.join(", ") || "");
@@ -1264,14 +1289,29 @@ function DataItem({ type, item, onUpdate }: { type: string; item: any; onUpdate:
       {editing ? (
         <div className="space-y-2">
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">User ID</label>
-            <input
-              type="text"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
-              placeholder="e.g. person:alon"
-            />
+            <label className="block text-xs text-muted-foreground mb-1">Person</label>
+            {contacts.length > 0 ? (
+              <select
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
+              >
+                <option value="">No person</option>
+                {contacts.map((c) => (
+                  <option key={c.canonical_id} value={c.canonical_id}>
+                    {c.name} ({c.canonical_id})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
+                placeholder="e.g. person:alon"
+              />
+            )}
           </div>
           <div>
             <label className="block text-xs text-muted-foreground mb-1">Authorized IDs (comma-separated)</label>
@@ -1290,7 +1330,7 @@ function DataItem({ type, item, onUpdate }: { type: string; item: any; onUpdate:
         </div>
       ) : (
         <div className="text-xs text-muted-foreground">
-          <p>User ID: {item.user_id || 'none'}</p>
+          <p>Person: {contacts.find((c) => c.canonical_id === item.user_id)?.name || item.user_id || 'none'}</p>
           <p>Authorized: {item.authorized_ids?.join(", ") || 'none'}</p>
         </div>
       )}

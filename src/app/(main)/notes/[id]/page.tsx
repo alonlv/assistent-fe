@@ -2,7 +2,8 @@
 
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { useNote, useDeleteNote } from "@/hooks/use-notes";
+import { useNote, useDeleteNote, useUpdateNote } from "@/hooks/use-notes";
+import { useContacts } from "@/hooks/use-contacts";
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trash2 } from "lucide-react";
@@ -11,6 +12,8 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const { id } = use(params);
   const { data: note, isLoading } = useNote(id);
   const deleteNote = useDeleteNote();
+  const updateNote = useUpdateNote();
+  const { data: contacts = [] } = useContacts();
   const router = useRouter();
 
   async function handleDelete() {
@@ -54,6 +57,21 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
         </Button>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="capitalize">{note.topic}</span>
+          {contacts.length > 0 && (
+            <select
+              value={note.user_id || ""}
+              onChange={(e) => updateNote.mutate({ id, user_id: e.target.value || "api-user" })}
+              className="h-7 rounded border border-input bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              title="Assign to person"
+            >
+              <option value="">No person</option>
+              {contacts.map((c) => (
+                <option key={c.canonical_id} value={c.canonical_id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
           <Button
             variant="ghost"
             size="icon"
