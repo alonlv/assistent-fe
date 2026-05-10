@@ -219,6 +219,11 @@ export default function ProactiveTasksPage() {
                     {t.last_run_at && (
                       <span className="opacity-60">Last ran {new Date(t.last_run_at).toLocaleString()}</span>
                     )}
+                    {(t.owner_id || t.user_id || t.person_id) && (
+                      <span className="opacity-50 truncate" title={t.owner_id || t.user_id || t.person_id}>
+                        {(t.owner_id || t.user_id || t.person_id || "").replace(/^person:/, "")}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"

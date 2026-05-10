@@ -161,11 +161,18 @@ export default function MemoriesPage() {
                 <Brain className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
                 <div className="flex-1 min-w-0">
                   <Md className="text-sm">{m.content}</Md>
-                  {category && (
-                    <Badge variant="secondary" className="mt-1.5 text-xs capitalize">
-                      {category.toLowerCase()}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {category && (
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        {category.toLowerCase()}
+                      </Badge>
+                    )}
+                    {(m.owner_id || m.user_id || m.person_id) && (
+                      <span className="text-xs text-muted-foreground/50 truncate" title={m.owner_id || m.user_id || m.person_id}>
+                        {(m.owner_id || m.user_id || m.person_id || "").replace(/^person:/, "")}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
                   onClick={() => { setEditId(m.id); setShowAdd(false); }}>

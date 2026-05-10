@@ -74,6 +74,9 @@ export interface ProactiveTask {
 
 export interface Memory {
   id: string;
+  person_id?: string;
+  user_id?: string;
+  owner_id?: string;
   content: string;
   metadata: Record<string, unknown>;
   score: number;

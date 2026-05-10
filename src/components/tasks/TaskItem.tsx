@@ -107,6 +107,16 @@ export function TaskItem({ task, showStatus = false }: { task: Task; showStatus?
               }}
             />
           )}
+
+          {/* Owner */}
+          {(task.owner_id || task.user_id || task.person_id) && (
+            <span
+              className="text-xs text-muted-foreground/40 truncate"
+              title={task.owner_id || task.user_id || task.person_id}
+            >
+              {(task.owner_id || task.user_id || task.person_id || "").replace(/^person:/, "")}
+            </span>
+          )}
         </div>
       </div>
 

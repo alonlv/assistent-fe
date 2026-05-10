@@ -213,6 +213,11 @@ export default function RemindersPage() {
                       {formatSchedule(r)}
                     </span>
                     <span className="capitalize opacity-60">{r.platform}</span>
+                    {(r.owner_id || r.user_id || r.person_id) && (
+                      <span className="opacity-50 truncate" title={r.owner_id || r.user_id || r.person_id}>
+                        {(r.owner_id || r.user_id || r.person_id || "").replace(/^person:/, "")}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
