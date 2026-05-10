@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RotateCcw, Save, Plus, Trash2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
+import { apiFetch } from "@/lib/api";
+import type { Contact } from "@/types/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -39,19 +41,6 @@ interface Toast {
   type: "success" | "error" | "info";
 }
 
-interface Identity {
-  platform: string;
-  id: string;
-  label: string;
-}
-
-interface Contact {
-  name: string;
-  canonical_id: string;
-  identities: Identity[];
-  primary_channel?: { platform: string; channel_id: string };
-}
-
 type Tab = "general" | "prompt" | "providers" | "contacts" | "data";
 
 const DEFAULT_PROVIDER: LlmProvider = {
@@ -65,20 +54,6 @@ const DEFAULT_PROVIDER: LlmProvider = {
   voice_model: "whisper-1",
   timeout_seconds: 60,
 };
-
-// ─── API helpers ─────────────────────────────────────────────────────────────
-
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.detail ?? body?.error ?? `HTTP ${res.status}`);
-  }
-  return res.json();
-}
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
 
@@ -268,6 +243,17 @@ export default function AdminPage() {
     try {
       const r = await apiFetch<{ loaded: number }>("/api/admin/contacts/reload", { method: "POST" });
       toast(`Reloaded ${r.loaded} contact(s) from disk`, "success");
+      await loadContacts();
+    } catch (e) { toast((e as Error).message, "error"); }
+  }
+
+  async function saveContactData(canonicalId: string, data: Record<string, unknown>) {
+    try {
+      await apiFetch(`/api/admin/contacts/${encodeURIComponent(canonicalId)}/data`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      toast("Saved", "success");
       await loadContacts();
     } catch (e) { toast((e as Error).message, "error"); }
   }
@@ -568,6 +554,7 @@ export default function AdminPage() {
                   onAddIdentity={(platform, id, label) => addIdentity(c.canonical_id, platform, id, label)}
                   onRemoveIdentity={(platform, id) => removeIdentity(platform, id)}
                   onSetPrimaryChannel={(platform, channelId) => setPrimaryChannel(c.canonical_id, platform, channelId)}
+                  onSaveData={(data) => saveContactData(c.canonical_id, data)}
                 />
               ))
             )}
@@ -1020,12 +1007,14 @@ function ContactCard({
   onAddIdentity,
   onRemoveIdentity,
   onSetPrimaryChannel,
+  onSaveData,
 }: {
   contact: Contact;
   onRemove: () => void;
   onAddIdentity: (platform: string, id: string, label: string) => void;
   onRemoveIdentity: (platform: string, id: string) => void;
   onSetPrimaryChannel: (platform: string, channelId: string) => void;
+  onSaveData: (data: Record<string, unknown>) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [newPlatform, setNewPlatform] = useState("telegram");
@@ -1033,6 +1022,31 @@ function ContactCard({
   const [newLabel, setNewLabel] = useState("");
   const [channelPlatform, setChannelPlatform] = useState("telegram");
   const [channelId, setChannelId] = useState("");
+
+  // Per-user model override state
+  const existingProviders = (c.attributes?.llm_providers as LlmProvider[] | undefined) ?? [];
+  const hasModelOverride = existingProviders.length > 0;
+  const [showModelOverride, setShowModelOverride] = useState(false);
+  const [overrideBaseUrl, setOverrideBaseUrl] = useState(existingProviders[0]?.base_url ?? "");
+  const [overrideModel, setOverrideModel] = useState(existingProviders[0]?.model ?? "");
+  const [overrideApiKey, setOverrideApiKey] = useState(existingProviders[0]?.api_key ?? "");
+
+  function saveModelOverride() {
+    if (!overrideBaseUrl.trim() || !overrideModel.trim() || !overrideApiKey.trim()) return;
+    const provider: LlmProvider = {
+      ...DEFAULT_PROVIDER,
+      base_url: overrideBaseUrl.trim(),
+      model: overrideModel.trim(),
+      api_key: overrideApiKey.trim(),
+    };
+    onSaveData({ ...(c.attributes ?? {}), llm_providers: [provider] });
+    setShowModelOverride(false);
+  }
+
+  function clearModelOverride() {
+    const { llm_providers: _, ...rest } = c.attributes ?? {};
+    onSaveData(rest as Record<string, unknown>);
+  }
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -1158,6 +1172,80 @@ function ContactCard({
                 Set channel
               </Button>
             </div>
+          </div>
+
+          {/* Model override */}
+          <div className="pt-3 border-t border-dashed border-border mt-2">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-muted-foreground">
+                Model override{" "}
+                <span className="text-[10px] text-muted-foreground/60">(optional)</span>
+              </p>
+              {hasModelOverride && !showModelOverride && (
+                <button
+                  onClick={clearModelOverride}
+                  className="text-[10px] text-destructive hover:underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {hasModelOverride && !showModelOverride ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded flex-1 truncate">
+                  {existingProviders[0].model}
+                </span>
+                <button
+                  onClick={() => {
+                    setOverrideBaseUrl(existingProviders[0].base_url);
+                    setOverrideModel(existingProviders[0].model);
+                    setOverrideApiKey(existingProviders[0].api_key);
+                    setShowModelOverride(true);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Edit
+                </button>
+              </div>
+            ) : showModelOverride ? (
+              <div className="space-y-2">
+                <LabeledInput
+                  label="Base URL"
+                  value={overrideBaseUrl}
+                  onChange={setOverrideBaseUrl}
+                  placeholder="https://api.openai.com/v1"
+                />
+                <LabeledInput
+                  label="Model"
+                  value={overrideModel}
+                  onChange={setOverrideModel}
+                  placeholder="gpt-4o"
+                />
+                <LabeledInput
+                  label="API Key"
+                  value={overrideApiKey}
+                  onChange={setOverrideApiKey}
+                  placeholder="sk-…"
+                  type="password"
+                />
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" onClick={saveModelOverride}>
+                    <Save className="h-3 w-3 mr-1" /> Save override
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowModelOverride(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowModelOverride(true)}
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" /> Assign a specific model to this user
+              </button>
+            )}
           </div>
         </div>
       )}

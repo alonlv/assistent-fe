@@ -2,164 +2,21 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Zap, Clock, RefreshCw, AlertCircle, Plus, Pencil, X, Check } from "lucide-react";
+import { Trash2, Zap, Clock, RefreshCw, AlertCircle, Plus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Md } from "@/components/ui/md";
-import { cn } from "@/lib/utils";
+import {
+  ScheduledItemForm,
+  scheduledFormToPayload,
+  scheduledItemToForm,
+  formatItemSchedule,
+  type ScheduledFormState,
+  EMPTY_SCHEDULED_FORM,
+} from "@/components/ui/ScheduledItemForm";
 import type { ProactiveTask } from "@/types/api";
 import { useContacts } from "@/hooks/use-contacts";
 
-const PLATFORMS = ["telegram", "slack", "webex", "whatsapp"];
-
-const EMPTY_FORM = {
-  instruction: "",
-  platform: "telegram",
-  channel_id: "",
-  authorized_ids: [] as string[],
-  scheduleType: "cron" as "once" | "cron",
-  run_at: "",
-  cron: "",
-};
-
-type FormState = typeof EMPTY_FORM;
-
-function MonitorForm({
-  initial,
-  onSave,
-  onCancel,
-  saving,
-  contacts,
-}: {
-  initial: FormState;
-  onSave: (f: FormState) => void;
-  onCancel: () => void;
-  saving: boolean;
-  contacts: Array<{ canonical_id: string; name: string }>;
-}) {
-  const [f, setF] = useState(initial);
-  const set = (k: keyof Omit<FormState, "authorized_ids">, v: string) => setF((p) => ({ ...p, [k]: v }));
-  const togglePerson = (id: string) =>
-    setF((p) => ({
-      ...p,
-      authorized_ids: p.authorized_ids.includes(id)
-        ? p.authorized_ids.filter((x) => x !== id)
-        : [...p.authorized_ids, id],
-    }));
-
-  return (
-    <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-      <div>
-        <label className="text-xs text-muted-foreground mb-1 block">Instruction</label>
-        <Input
-          value={f.instruction}
-          onChange={(e) => set("instruction", e.target.value)}
-          placeholder="e.g. Send me a daily task summary at 9am"
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Platform</label>
-          <select
-            value={f.platform}
-            onChange={(e) => set("platform", e.target.value)}
-            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            {PLATFORMS.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Channel / Chat ID</label>
-          <Input value={f.channel_id} onChange={(e) => set("channel_id", e.target.value)} placeholder="e.g. 123456789" />
-        </div>
-      </div>
-      {contacts.length > 0 && (
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">People</label>
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-            {contacts.map((c) => (
-              <label key={c.canonical_id} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={f.authorized_ids.includes(c.canonical_id)}
-                  onChange={() => togglePerson(c.canonical_id)}
-                  className="h-3.5 w-3.5 accent-primary"
-                />
-                {c.name}
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-      <div>
-        <label className="text-xs text-muted-foreground mb-1 block">Schedule</label>
-        <div className="flex gap-2 mb-2">
-          {(["once", "cron"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => set("scheduleType", t)}
-              className={cn(
-                "text-xs px-3 py-1 rounded-full border transition-colors",
-                f.scheduleType === t ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-foreground"
-              )}
-            >
-              {t === "once" ? "One-time" : "Recurring (cron)"}
-            </button>
-          ))}
-        </div>
-        {f.scheduleType === "once" ? (
-          <Input type="datetime-local" value={f.run_at} onChange={(e) => set("run_at", e.target.value)} />
-        ) : (
-          <Input value={f.cron} onChange={(e) => set("cron", e.target.value)} placeholder="e.g. 0 9 * * 1-5" />
-        )}
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
-          <X className="h-3.5 w-3.5 mr-1" /> Cancel
-        </Button>
-        <Button size="sm" onClick={() => onSave(f)} disabled={saving || !f.instruction.trim()}>
-          <Check className="h-3.5 w-3.5 mr-1" /> Save
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function formToPayload(f: FormState) {
-  return {
-    instruction: f.instruction,
-    platform: f.platform,
-    channel_id: f.channel_id,
-    user_id: f.authorized_ids[0] || "web-user",
-    authorized_ids: f.authorized_ids,
-    run_at: f.scheduleType === "once" && f.run_at ? new Date(f.run_at).toISOString() : null,
-    cron: f.scheduleType === "cron" && f.cron ? f.cron : null,
-  };
-}
-
-function taskToForm(t: ProactiveTask): FormState {
-  const ids = t.authorized_ids?.length
-    ? t.authorized_ids
-    : t.user_id && t.user_id !== "web-user" ? [t.user_id] : [];
-  return {
-    instruction: t.instruction,
-    platform: t.platform,
-    channel_id: t.channel_id,
-    authorized_ids: ids,
-    scheduleType: t.cron ? "cron" : "once",
-    run_at: t.run_at ? new Date(t.run_at).toISOString().slice(0, 16) : "",
-    cron: t.cron ?? "",
-  };
-}
-
-function formatSchedule(t: ProactiveTask) {
-  if (t.cron) return `Every: ${t.cron}`;
-  if (t.run_at) return new Date(t.run_at).toLocaleString();
-  return "—";
-}
+const EMPTY_MONITOR_FORM: ScheduledFormState = { ...EMPTY_SCHEDULED_FORM, scheduleType: "cron" };
 
 export default function ProactiveTasksPage() {
   const qc = useQueryClient();
@@ -189,6 +46,10 @@ export default function ProactiveTasksPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["proactive-tasks"] }),
   });
 
+  function toForm(t: ProactiveTask): ScheduledFormState {
+    return scheduledItemToForm(t, t.instruction);
+  }
+
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
@@ -212,9 +73,11 @@ export default function ProactiveTasksPage() {
 
       {showAdd && (
         <div className="mb-4">
-          <MonitorForm
-            initial={EMPTY_FORM}
-            onSave={(f) => create.mutate(formToPayload(f))}
+          <ScheduledItemForm
+            initial={EMPTY_MONITOR_FORM}
+            textLabel="Instruction"
+            textPlaceholder="e.g. Send me a daily task summary at 9am"
+            onSave={(f) => create.mutate(scheduledFormToPayload(f, "instruction"))}
             onCancel={() => setShowAdd(false)}
             saving={create.isPending}
             contacts={contacts}
@@ -235,10 +98,12 @@ export default function ProactiveTasksPage() {
         <div className="space-y-2">
           {tasks.map((t) =>
             editId === t.id ? (
-              <MonitorForm
+              <ScheduledItemForm
                 key={t.id}
-                initial={taskToForm(t)}
-                onSave={(f) => update.mutate({ id: t.id, body: formToPayload(f) })}
+                initial={toForm(t)}
+                textLabel="Instruction"
+                textPlaceholder="e.g. Send me a daily task summary at 9am"
+                onSave={(f) => update.mutate({ id: t.id, body: scheduledFormToPayload(f, "instruction") })}
                 onCancel={() => setEditId(null)}
                 saving={update.isPending}
                 contacts={contacts}
@@ -251,7 +116,7 @@ export default function ProactiveTasksPage() {
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {formatSchedule(t)}
+                      {formatItemSchedule(t)}
                     </span>
                     {t.last_run_at && (
                       <span className="opacity-60">Last ran {new Date(t.last_run_at).toLocaleString()}</span>

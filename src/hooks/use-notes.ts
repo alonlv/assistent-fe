@@ -4,10 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Note } from "@/types/api";
 
-export function useNotes(topic?: string) {
+export function useNotes(topic?: string, userId?: string) {
   return useQuery({
-    queryKey: ["notes", topic ?? null],
-    queryFn: () => api.notes.list(topic),
+    queryKey: ["notes", topic ?? null, userId ?? null],
+    queryFn: () => api.notes.list(topic, userId),
   });
 }
 

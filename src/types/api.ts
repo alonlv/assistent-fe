@@ -72,6 +72,20 @@ export interface ProactiveTask {
   authorized_ids?: string[];
 }
 
+export interface ContactIdentity {
+  platform: string;
+  id: string;
+  label: string;
+}
+
+export interface Contact {
+  name: string;
+  canonical_id: string;
+  identities: ContactIdentity[];
+  primary_channel?: { platform: string; channel_id: string };
+  attributes?: Record<string, unknown>;
+}
+
 export interface Memory {
   id: string;
   person_id?: string;

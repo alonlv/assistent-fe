@@ -9,6 +9,7 @@ import { TopicFilter } from "@/components/notes/TopicFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, Plus, Search } from "lucide-react";
+import { useSelectedUser } from "@/context/user-context";
 
 function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
@@ -18,12 +19,13 @@ function NotesPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const selectedTopic = searchParams.get("topic");
+  const { selectedUserId, selectedUserName } = useSelectedUser();
 
   const [search, setSearch] = useState("");
   const [newTopic, setNewTopic] = useState("");
   const [showTopicInput, setShowTopicInput] = useState(false);
 
-  const { data: notes = [], isLoading, error: notesError } = useNotes();
+  const { data: notes = [], isLoading, error: notesError } = useNotes(undefined, selectedUserId ?? undefined);
   const { data: topics = [] } = useTopics();
   const createNote = useCreateNote();
   const updateTopic = useUpdateTopic();
@@ -59,7 +61,12 @@ function NotesPageInner() {
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Notes</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Notes</h1>
+          {selectedUserName && (
+            <p className="text-xs text-primary mt-0.5">Viewing {selectedUserName}&apos;s notes</p>
+          )}
+        </div>
         {!showTopicInput ? (
           <Button size="sm" onClick={() => setShowTopicInput(true)}>
             <Plus className="h-4 w-4 mr-1" />

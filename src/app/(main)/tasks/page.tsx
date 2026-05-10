@@ -10,6 +10,7 @@ import { List, LayoutGrid, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TaskStatus } from "@/types/api";
 import { STATUS_LABELS } from "@/lib/task-utils";
+import { useSelectedUser } from "@/context/user-context";
 
 type View = "list" | "kanban";
 
@@ -21,7 +22,8 @@ const FILTERS: Array<{ label: string; value: TaskStatus | "all" }> = [
 ];
 
 export default function TasksPage() {
-  const { data: tasks = [], isLoading, error: tasksError } = useTasks();
+  const { selectedUserId, selectedUserName } = useSelectedUser();
+  const { data: tasks = [], isLoading, error: tasksError } = useTasks(selectedUserId ?? undefined);
   const [view, setView] = useState<View>("list");
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
 
@@ -34,7 +36,12 @@ export default function TasksPage() {
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Tasks</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Tasks</h1>
+          {selectedUserName && (
+            <p className="text-xs text-primary mt-0.5">Viewing {selectedUserName}&apos;s tasks</p>
+          )}
+        </div>
         <div className="flex items-center gap-1 rounded-lg border border-border p-1">
           <Button
             variant={view === "list" ? "secondary" : "ghost"}

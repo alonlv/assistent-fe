@@ -4,10 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Priority, Task, TaskStatus } from "@/types/api";
 
-export function useTasks() {
+export function useTasks(userId?: string) {
   return useQuery({
-    queryKey: ["tasks"],
-    queryFn: api.tasks.list,
+    queryKey: ["tasks", userId ?? null],
+    queryFn: () => api.tasks.list(userId),
   });
 }
 
