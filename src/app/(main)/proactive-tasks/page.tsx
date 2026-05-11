@@ -16,6 +16,7 @@ import {
 import type { ProactiveTask } from "@/types/api";
 import { useContacts } from "@/hooks/use-contacts";
 import { useSelectedUser } from "@/context/user-context";
+import { Users } from "lucide-react";
 
 const EMPTY_MONITOR_FORM: ScheduledFormState = { ...EMPTY_SCHEDULED_FORM, scheduleType: "cron" };
 
@@ -65,9 +66,11 @@ export default function ProactiveTasksPage() {
           <Button variant="ghost" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["proactive-tasks"] })}>
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button size="sm" onClick={() => { setShowAdd(true); setEditId(null); }}>
-            <Plus className="h-4 w-4 mr-1" /> Add
-          </Button>
+          {selectedUserId && (
+            <Button size="sm" onClick={() => { setShowAdd(true); setEditId(null); }}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          )}
         </div>
       </div>
 
@@ -78,13 +81,20 @@ export default function ProactiveTasksPage() {
         </div>
       )}
 
-      {showAdd && (
+      {contacts.length > 0 && !selectedUserId && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          <Users className="h-4 w-4 shrink-0" />
+          Select a profile from the sidebar to view and manage monitors.
+        </div>
+      )}
+
+      {showAdd && selectedUserId && (
         <div className="mb-4">
           <ScheduledItemForm
             initial={EMPTY_MONITOR_FORM}
             textLabel="Instruction"
             textPlaceholder="e.g. Send me a daily task summary at 9am"
-            onSave={(f) => create.mutate(scheduledFormToPayload(f, "instruction"))}
+            onSave={(f) => create.mutate(scheduledFormToPayload(f, "instruction", selectedUserId))}
             onCancel={() => setShowAdd(false)}
             saving={create.isPending}
             contacts={contacts}
@@ -110,7 +120,7 @@ export default function ProactiveTasksPage() {
                 initial={toForm(t)}
                 textLabel="Instruction"
                 textPlaceholder="e.g. Send me a daily task summary at 9am"
-                onSave={(f) => update.mutate({ id: t.id, body: scheduledFormToPayload(f, "instruction") })}
+                onSave={(f) => update.mutate({ id: t.id, body: scheduledFormToPayload(f, "instruction", selectedUserId) })}
                 onCancel={() => setEditId(null)}
                 saving={update.isPending}
                 contacts={contacts}

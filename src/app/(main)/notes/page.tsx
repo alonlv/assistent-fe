@@ -52,7 +52,7 @@ function NotesPageInner() {
 
   async function handleCreate() {
     const topic = newTopic.trim() || selectedTopic || "general";
-    const note = await createNote.mutateAsync({ content: "", topic });
+    const note = await createNote.mutateAsync({ content: "", topic, user_id: selectedUserId ?? undefined });
     setShowTopicInput(false);
     setNewTopic("");
     router.push(`/notes/${note.id}`);

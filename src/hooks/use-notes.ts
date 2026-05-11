@@ -14,7 +14,8 @@ export function useNotes(topic?: string, userId?: string) {
 export function useCreateNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: api.notes.create,
+    mutationFn: (body: { content?: string; topic: string; title?: string; user_id?: string }) =>
+      api.notes.create(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notes"] }),
   });
 }

@@ -4,7 +4,6 @@ import { use } from "react";
 import { useRouter } from "next/navigation";
 import { useNote, useDeleteNote, useUpdateNote } from "@/hooks/use-notes";
 import { useContacts } from "@/hooks/use-contacts";
-import { useTopics, useUpdateTopic } from "@/hooks/use-topics";
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trash2 } from "lucide-react";
@@ -15,8 +14,6 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
   const deleteNote = useDeleteNote();
   const updateNote = useUpdateNote();
   const { data: contacts = [] } = useContacts();
-  const { data: topics = [] } = useTopics();
-  const updateTopic = useUpdateTopic();
   const router = useRouter();
 
   async function handleDelete() {
@@ -60,33 +57,12 @@ export default function NotePage({ params }: { params: Promise<{ id: string }> }
         </Button>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="capitalize">{note.topic}</span>
-          {contacts.length > 0 && (() => {
-            const currentTopic = topics.find(t => t.name === note.topic);
-            if (!currentTopic) return null;
-            return (
-              <select
-                value={currentTopic.owner_id || ""}
-                onChange={(e) =>
-                  updateTopic.mutate({ id: currentTopic.id, user_id: e.target.value || undefined })
-                }
-                className="h-7 rounded border border-input bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                title="Assign topic to person"
-              >
-                <option value="">Topic: no person</option>
-                {contacts.map((c) => (
-                  <option key={c.canonical_id} value={c.canonical_id}>
-                    Topic: {c.name}
-                  </option>
-                ))}
-              </select>
-            );
-          })()}
           {contacts.length > 0 && (
             <select
               value={note.user_id || ""}
-              onChange={(e) => updateNote.mutate({ id, user_id: e.target.value || "api-user" })}
+              onChange={(e) => updateNote.mutate({ id, user_id: e.target.value || undefined })}
               className="h-7 rounded border border-input bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              title="Assign to person"
+              title="Assign note to person"
             >
               <option value="">No person</option>
               {contacts.map((c) => (
