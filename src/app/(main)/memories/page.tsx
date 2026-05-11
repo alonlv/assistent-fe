@@ -193,7 +193,7 @@ export default function MemoriesPage() {
             return editId === m.id ? (
               <MemoryForm
                 key={m.id}
-                initial={{ content: m.content, category: category ?? "", authorized_ids: m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [] }}
+                initial={{ content: m.content, category: category ?? "", authorized_ids: (m.metadata as any)?.authorized_ids?.length ? (m.metadata as any).authorized_ids : m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [] }}
                 onSave={(s) => update.mutate({ id: m.id, body: { content: s.content, category: s.category || undefined, user_id: s.authorized_ids[0] || undefined, authorized_ids: s.authorized_ids } })}
                 onCancel={() => setEditId(null)}
                 saving={update.isPending}
@@ -211,7 +211,7 @@ export default function MemoriesPage() {
                       </Badge>
                     )}
                     {(() => {
-                      const ids = m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [];
+                      const ids = (m.metadata as any)?.authorized_ids?.length ? (m.metadata as any).authorized_ids : m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [];
                       if (!ids.length) return null;
                       const names = ids.map((id) => contacts.find((c) => c.canonical_id === id)?.name ?? id.replace(/^person:/, ""));
                       return <span className="text-xs text-muted-foreground/50 truncate">{names.join(", ")}</span>;
