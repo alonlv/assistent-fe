@@ -16,6 +16,7 @@ import {
 import type { Reminder } from "@/types/api";
 import { useContacts } from "@/hooks/use-contacts";
 import { useSelectedUser } from "@/context/user-context";
+import { Users } from "lucide-react";
 
 export default function RemindersPage() {
   const qc = useQueryClient();
@@ -63,9 +64,11 @@ export default function RemindersPage() {
           <Button variant="ghost" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["reminders"] })}>
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button size="sm" onClick={() => { setShowAdd(true); setEditId(null); }}>
-            <Plus className="h-4 w-4 mr-1" /> Add
-          </Button>
+          {selectedUserId && (
+            <Button size="sm" onClick={() => { setShowAdd(true); setEditId(null); }}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          )}
         </div>
       </div>
 
@@ -76,13 +79,20 @@ export default function RemindersPage() {
         </div>
       )}
 
-      {showAdd && (
+      {contacts.length > 0 && !selectedUserId && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          <Users className="h-4 w-4 shrink-0" />
+          Select a profile from the sidebar to view and manage reminders.
+        </div>
+      )}
+
+      {showAdd && selectedUserId && (
         <div className="mb-4">
           <ScheduledItemForm
             initial={EMPTY_SCHEDULED_FORM}
             textLabel="Message"
             textPlaceholder="Reminder text…"
-            onSave={(f) => create.mutate(scheduledFormToPayload(f, "message"))}
+            onSave={(f) => create.mutate(scheduledFormToPayload(f, "message", selectedUserId))}
             onCancel={() => setShowAdd(false)}
             saving={create.isPending}
             contacts={contacts}
@@ -108,7 +118,7 @@ export default function RemindersPage() {
                 initial={toForm(r)}
                 textLabel="Message"
                 textPlaceholder="Reminder text…"
-                onSave={(f) => update.mutate({ id: r.id, body: scheduledFormToPayload(f, "message") })}
+                onSave={(f) => update.mutate({ id: r.id, body: scheduledFormToPayload(f, "message", selectedUserId) })}
                 onCancel={() => setEditId(null)}
                 saving={update.isPending}
                 contacts={contacts}

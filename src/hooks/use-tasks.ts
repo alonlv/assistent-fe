@@ -14,7 +14,8 @@ export function useTasks(userId?: string) {
 export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: api.tasks.create,
+    mutationFn: (body: { title: string; status?: TaskStatus; priority?: Priority; due_date?: string; user_id?: string }) =>
+      api.tasks.create(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
   });
 }

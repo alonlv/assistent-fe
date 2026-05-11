@@ -10,6 +10,7 @@ import { Md } from "@/components/ui/md";
 import type { Memory } from "@/types/api";
 import { useContacts } from "@/hooks/use-contacts";
 import { useSelectedUser } from "@/context/user-context";
+import { Users } from "lucide-react";
 
 type EditState = { content: string; category: string; authorized_ids: string[] };
 
@@ -139,9 +140,11 @@ export default function MemoriesPage() {
           <Button variant="ghost" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["memories"] })}>
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button size="sm" onClick={() => { setShowAdd(true); setEditId(null); }}>
-            <Plus className="h-4 w-4 mr-1" /> Add
-          </Button>
+          {selectedUserId && (
+            <Button size="sm" onClick={() => { setShowAdd(true); setEditId(null); }}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          )}
         </div>
       </div>
 
@@ -152,11 +155,21 @@ export default function MemoriesPage() {
         </div>
       )}
 
-      {showAdd && (
+      {contacts.length > 0 && !selectedUserId && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          <Users className="h-4 w-4 shrink-0" />
+          Select a profile from the sidebar to view and manage memories.
+        </div>
+      )}
+
+      {showAdd && selectedUserId && (
         <div className="mb-4">
           <MemoryForm
-            initial={{ content: "", category: "", authorized_ids: selectedUserId ? [selectedUserId] : [] }}
-            onSave={(s) => create.mutate({ content: s.content, category: s.category || undefined, user_id: s.authorized_ids[0] || undefined, authorized_ids: s.authorized_ids })}
+            initial={{ content: "", category: "", authorized_ids: [selectedUserId] }}
+            onSave={(s) => {
+              const ids = [...new Set([selectedUserId, ...s.authorized_ids].filter(Boolean))];
+              create.mutate({ content: s.content, category: s.category || undefined, user_id: selectedUserId, authorized_ids: ids });
+            }}
             onCancel={() => setShowAdd(false)}
             saving={create.isPending}
             contacts={contacts}
@@ -193,8 +206,11 @@ export default function MemoriesPage() {
             return editId === m.id ? (
               <MemoryForm
                 key={m.id}
-                initial={{ content: m.content, category: category ?? "", authorized_ids: (m.metadata as any)?.authorized_ids?.length ? (m.metadata as any).authorized_ids : m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [] }}
-                onSave={(s) => update.mutate({ id: m.id, body: { content: s.content, category: s.category || undefined, user_id: s.authorized_ids[0] || undefined, authorized_ids: s.authorized_ids } })}
+                initial={{ content: m.content, category: category ?? "", authorized_ids: m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [] }}
+                onSave={(s) => {
+                  const ids = [...new Set([selectedUserId, ...s.authorized_ids].filter(Boolean))];
+                  update.mutate({ id: m.id, body: { content: s.content, category: s.category || undefined, user_id: selectedUserId || undefined, authorized_ids: ids } });
+                }}
                 onCancel={() => setEditId(null)}
                 saving={update.isPending}
                 contacts={contacts}

@@ -31,7 +31,7 @@ export const api = {
     },
     get: (id: string) =>
       apiFetch<Note>(`/api/notes/${encodeURIComponent(id)}`),
-    create: (body: { content?: string; topic: string; title?: string }) =>
+    create: (body: { content?: string; topic: string; title?: string; user_id?: string }) =>
       apiFetch<Note>("/api/notes", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<{ title: string; content: string; topic: string; user_id: string; authorized_ids: string[] }>) =>
       apiFetch<Note>(`/api/notes/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
@@ -40,7 +40,7 @@ export const api = {
   },
   tasks: {
     list: (userId?: string) => apiFetch<Task[]>(`/api/tasks${userId ? `?user_id=${encodeURIComponent(userId)}` : ""}`),
-    create: (body: { title: string; status?: TaskStatus; priority?: Priority; due_date?: string }) =>
+    create: (body: { title: string; status?: TaskStatus; priority?: Priority; due_date?: string; user_id?: string }) =>
       apiFetch<Task>("/api/tasks", { method: "POST", body: JSON.stringify(body) }),
     update: (
       id: string,

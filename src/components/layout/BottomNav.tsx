@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { FileText, CheckSquare, MessageSquare, Bell, Brain, LogOut } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare, Bell, Brain, Zap, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/reminders", label: "Alerts", icon: Bell },
+  { href: "/proactive-tasks", label: "Monitors", icon: Zap },
   { href: "/memories", label: "Memory", icon: Brain },
 ];
 
