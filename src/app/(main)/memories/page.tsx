@@ -211,9 +211,9 @@ export default function MemoriesPage() {
                       </Badge>
                     )}
                     {(() => {
-                      const ids = (m.metadata as any)?.authorized_ids?.length ? (m.metadata as any).authorized_ids : m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [];
+                      const ids: string[] = (m.metadata as any)?.authorized_ids?.length ? (m.metadata as any).authorized_ids : m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [];
                       if (!ids.length) return null;
-                      const names = ids.map((id) => contacts.find((c) => c.canonical_id === id)?.name ?? id.replace(/^person:/, ""));
+                      const names = ids.map((id: string) => contacts.find((c) => c.canonical_id === id)?.name ?? id.replace(/^person:/, ""));
                       return <span className="text-xs text-muted-foreground/50 truncate">{names.join(", ")}</span>;
                     })()}
                   </div>
