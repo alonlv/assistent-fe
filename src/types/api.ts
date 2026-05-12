@@ -68,7 +68,6 @@ export interface Contact {
 
 export interface Memory {
   id: string;
-  owner_id?: string;
   user_id?: string;
   owner_id?: string;
   content: string;
