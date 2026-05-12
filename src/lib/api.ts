@@ -1,6 +1,6 @@
 import type { Note, Priority, Task, TaskStatus, Topic } from "@/types/api";
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
     headers: {
@@ -22,18 +22,25 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   notes: {
-    list: (topic?: string) =>
-      apiFetch<Note[]>(`/api/notes${topic ? `?topic=${encodeURIComponent(topic)}` : ""}`),
-    create: (body: { content?: string; topic: string; title?: string }) =>
+    list: (topic?: string, userId?: string) => {
+      const params = new URLSearchParams();
+      if (topic) params.set("topic", topic);
+      if (userId) params.set("user_id", userId);
+      const qs = params.toString();
+      return apiFetch<Note[]>(`/api/notes${qs ? `?${qs}` : ""}`);
+    },
+    get: (id: string) =>
+      apiFetch<Note>(`/api/notes/${encodeURIComponent(id)}`),
+    create: (body: { content?: string; topic: string; title?: string; user_id?: string }) =>
       apiFetch<Note>("/api/notes", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<{ title: string; content: string; topic: string; user_id: string; authorized_ids: string[] }>) =>
-      apiFetch<Note>(`/api/notes/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+      apiFetch<Note>(`/api/notes/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     delete: (id: string) =>
-      apiFetch<void>(`/api/notes/${id}`, { method: "DELETE" }),
+      apiFetch<void>(`/api/notes/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   tasks: {
-    list: () => apiFetch<Task[]>("/api/tasks"),
-    create: (body: { title: string; status?: TaskStatus; priority?: Priority; due_date?: string }) =>
+    list: (userId?: string) => apiFetch<Task[]>(`/api/tasks${userId ? `?user_id=${encodeURIComponent(userId)}` : ""}`),
+    create: (body: { title: string; status?: TaskStatus; priority?: Priority; due_date?: string; user_id?: string }) =>
       apiFetch<Task>("/api/tasks", { method: "POST", body: JSON.stringify(body) }),
     update: (
       id: string,

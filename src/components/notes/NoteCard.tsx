@@ -12,6 +12,7 @@ export function NoteCard({ note, topicColor }: { note: Note; topicColor?: string
   const preview = stripHtml(note.content).slice(0, 100);
   const date = new Date(note.updated_at || note.created_at).toLocaleDateString();
   const displayTitle = note.title || "Untitled";
+  const owner = note.owner_id || note.user_id || note.person_id || null;
 
   return (
     <Link href={`/notes/${note.id}`} className="block group">
@@ -30,7 +31,14 @@ export function NoteCard({ note, topicColor }: { note: Note; topicColor?: string
         {preview && (
           <p className="text-xs text-muted-foreground line-clamp-3 flex-1">{preview}</p>
         )}
-        <p className="text-xs text-muted-foreground/60 mt-auto">{date}</p>
+        <div className="flex items-center justify-between mt-auto">
+          <p className="text-xs text-muted-foreground/60">{date}</p>
+          {owner && (
+            <p className="text-xs text-muted-foreground/50 truncate max-w-[50%] text-right" title={owner}>
+              {owner.startsWith("person:") ? owner.slice(7) : owner}
+            </p>
+          )}
+        </div>
       </div>
     </Link>
   );

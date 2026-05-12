@@ -3,7 +3,31 @@ import { NextRequest, NextResponse } from "next/server";
 const AUTH_COOKIE = "notes_auth";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
+// Simple in-process rate limiter: max 10 attempts per IP per minute
+const _attempts = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 10;
+const RATE_WINDOW_MS = 60_000;
+
+function _checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = _attempts.get(ip);
+  if (!record || record.resetAt < now) {
+    _attempts.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  record.count += 1;
+  return record.count <= RATE_LIMIT;
+}
+
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (!_checkRateLimit(ip)) {
+    return NextResponse.json({ error: "Too many attempts. Try again later." }, {
+      status: 429,
+      headers: { "Retry-After": "60" },
+    });
+  }
+
   const { password } = await req.json();
 
   const expectedPassword = process.env.AUTH_PASSWORD;
@@ -24,16 +48,17 @@ export async function POST(req: NextRequest) {
     mismatch |= a[i] ^ b[i];
   }
 
+  // Always delay to prevent timing oracle on both success and failure paths
+  await new Promise((r) => setTimeout(r, 300));
+
   if (mismatch !== 0) {
-    // Fixed delay to prevent timing oracle even on length mismatch
-    await new Promise((r) => setTimeout(r, 300));
     return NextResponse.json({ error: "Wrong password." }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set(AUTH_COOKIE, authToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     sameSite: "strict",
     maxAge: COOKIE_MAX_AGE,
     path: "/",

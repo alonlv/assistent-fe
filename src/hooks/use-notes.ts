@@ -4,17 +4,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Note } from "@/types/api";
 
-export function useNotes(topic?: string) {
+export function useNotes(topic?: string, userId?: string) {
   return useQuery({
-    queryKey: ["notes", topic ?? null],
-    queryFn: () => api.notes.list(topic),
+    queryKey: ["notes", topic ?? null, userId ?? null],
+    queryFn: () => api.notes.list(topic, userId),
   });
 }
 
 export function useCreateNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: api.notes.create,
+    mutationFn: (body: { content?: string; topic: string; title?: string; user_id?: string }) =>
+      api.notes.create(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notes"] }),
   });
 }
@@ -45,10 +46,7 @@ export function useDeleteNote() {
 export function useNote(id: string) {
   return useQuery({
     queryKey: ["note", id],
-    queryFn: async () => {
-      const notes = await api.notes.list();
-      return notes.find((n) => n.id === id) ?? null;
-    },
+    queryFn: () => api.notes.get(id),
     enabled: Boolean(id),
   });
 }

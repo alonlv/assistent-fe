@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RotateCcw, Save, Plus, Trash2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
+import { apiFetch } from "@/lib/api";
+import type { Contact } from "@/types/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -39,18 +41,6 @@ interface Toast {
   type: "success" | "error" | "info";
 }
 
-interface Identity {
-  platform: string;
-  id: string;
-  label: string;
-}
-
-interface Contact {
-  name: string;
-  canonical_id: string;
-  identities: Identity[];
-}
-
 type Tab = "general" | "prompt" | "providers" | "contacts" | "data";
 
 const DEFAULT_PROVIDER: LlmProvider = {
@@ -64,20 +54,6 @@ const DEFAULT_PROVIDER: LlmProvider = {
   voice_model: "whisper-1",
   timeout_seconds: 60,
 };
-
-// ─── API helpers ─────────────────────────────────────────────────────────────
-
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.detail ?? body?.error ?? `HTTP ${res.status}`);
-  }
-  return res.json();
-}
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
 
@@ -100,6 +76,8 @@ export default function AdminPage() {
   const [defaults, setDefaults] = useState<Partial<Config>>({});
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [newContactName, setNewContactName] = useState("");
+  const [newContactCanon, setNewContactCanon] = useState("");
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const { toasts, toast } = useToasts();
@@ -250,10 +228,32 @@ export default function AdminPage() {
     } catch (e) { toast((e as Error).message, "error"); }
   }
 
+  async function setPrimaryChannel(canonicalId: string, platform: string, channelId: string) {
+    try {
+      await apiFetch(`/api/admin/contacts/${encodeURIComponent(canonicalId)}/channel`, {
+        method: "POST",
+        body: JSON.stringify({ platform, channel_id: channelId }),
+      });
+      toast("Primary channel set", "success");
+      await loadContacts();
+    } catch (e) { toast((e as Error).message, "error"); }
+  }
+
   async function reloadContacts() {
     try {
       const r = await apiFetch<{ loaded: number }>("/api/admin/contacts/reload", { method: "POST" });
       toast(`Reloaded ${r.loaded} contact(s) from disk`, "success");
+      await loadContacts();
+    } catch (e) { toast((e as Error).message, "error"); }
+  }
+
+  async function saveContactData(canonicalId: string, data: Record<string, unknown>) {
+    try {
+      await apiFetch(`/api/admin/contacts/${encodeURIComponent(canonicalId)}/data`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      toast("Saved", "success");
       await loadContacts();
     } catch (e) { toast((e as Error).message, "error"); }
   }
@@ -516,24 +516,24 @@ export default function AdminPage() {
           <div className="flex flex-col sm:flex-row gap-2 mb-4">
             <input
               type="text"
-              id="new-contact-name"
+              value={newContactName}
+              onChange={(e) => setNewContactName(e.target.value)}
               placeholder="Person name (e.g. alon)"
               className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1"
             />
             <input
               type="text"
-              id="new-contact-canon"
+              value={newContactCanon}
+              onChange={(e) => setNewContactCanon(e.target.value)}
               placeholder="canonical_id (optional)"
               className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1"
             />
             <Button
               size="sm"
               onClick={() => {
-                const name = (document.getElementById("new-contact-name") as HTMLInputElement).value;
-                const canon = (document.getElementById("new-contact-canon") as HTMLInputElement).value;
-                addContact(name, canon).then(() => {
-                  (document.getElementById("new-contact-name") as HTMLInputElement).value = "";
-                  (document.getElementById("new-contact-canon") as HTMLInputElement).value = "";
+                addContact(newContactName, newContactCanon).then(() => {
+                  setNewContactName("");
+                  setNewContactCanon("");
                 });
               }}
             >
@@ -553,6 +553,8 @@ export default function AdminPage() {
                   onRemove={() => removeContact(c.canonical_id)}
                   onAddIdentity={(platform, id, label) => addIdentity(c.canonical_id, platform, id, label)}
                   onRemoveIdentity={(platform, id) => removeIdentity(platform, id)}
+                  onSetPrimaryChannel={(platform, channelId) => setPrimaryChannel(c.canonical_id, platform, channelId)}
+                  onSaveData={(data) => saveContactData(c.canonical_id, data)}
                 />
               ))
             )}
@@ -1004,16 +1006,47 @@ function ContactCard({
   onRemove,
   onAddIdentity,
   onRemoveIdentity,
+  onSetPrimaryChannel,
+  onSaveData,
 }: {
   contact: Contact;
   onRemove: () => void;
   onAddIdentity: (platform: string, id: string, label: string) => void;
   onRemoveIdentity: (platform: string, id: string) => void;
+  onSetPrimaryChannel: (platform: string, channelId: string) => void;
+  onSaveData: (data: Record<string, unknown>) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [newPlatform, setNewPlatform] = useState("telegram");
   const [newId, setNewId] = useState("");
   const [newLabel, setNewLabel] = useState("");
+  const [channelPlatform, setChannelPlatform] = useState("telegram");
+  const [channelId, setChannelId] = useState("");
+
+  // Per-user model override state
+  const existingProviders = (c.attributes?.llm_providers as LlmProvider[] | undefined) ?? [];
+  const hasModelOverride = existingProviders.length > 0;
+  const [showModelOverride, setShowModelOverride] = useState(false);
+  const [overrideBaseUrl, setOverrideBaseUrl] = useState(existingProviders[0]?.base_url ?? "");
+  const [overrideModel, setOverrideModel] = useState(existingProviders[0]?.model ?? "");
+  const [overrideApiKey, setOverrideApiKey] = useState(existingProviders[0]?.api_key ?? "");
+
+  function saveModelOverride() {
+    if (!overrideBaseUrl.trim() || !overrideModel.trim() || !overrideApiKey.trim()) return;
+    const provider: LlmProvider = {
+      ...DEFAULT_PROVIDER,
+      base_url: overrideBaseUrl.trim(),
+      model: overrideModel.trim(),
+      api_key: overrideApiKey.trim(),
+    };
+    onSaveData({ ...(c.attributes ?? {}), llm_providers: [provider] });
+    setShowModelOverride(false);
+  }
+
+  function clearModelOverride() {
+    const { llm_providers: _, ...rest } = c.attributes ?? {};
+    onSaveData(rest as Record<string, unknown>);
+  }
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -1098,6 +1131,122 @@ function ContactCard({
               </Button>
             </div>
           </div>
+
+          <div className="pt-3 border-t border-dashed border-border mt-2">
+            <p className="text-xs text-muted-foreground mb-1">Primary channel</p>
+            {c.primary_channel ? (
+              <p className="text-xs font-mono text-muted-foreground mb-2">
+                Current: <span className="text-foreground">{c.primary_channel.platform} / {c.primary_channel.channel_id}</span>
+              </p>
+            ) : (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">
+                No channel set — user will be blocked on platforms where channel ID ≠ user ID (Slack, Webex, group chats).
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={channelPlatform}
+                onChange={(e) => setChannelPlatform(e.target.value)}
+                className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-w-[110px]"
+              >
+                <option value="telegram">Telegram</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="slack">Slack</option>
+                <option value="webex">Webex</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Channel / Chat ID"
+                value={channelId}
+                onChange={(e) => setChannelId(e.target.value)}
+                className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1 min-w-[120px]"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (!channelId.trim()) return;
+                  onSetPrimaryChannel(channelPlatform, channelId.trim());
+                  setChannelId("");
+                }}
+              >
+                Set channel
+              </Button>
+            </div>
+          </div>
+
+          {/* Model override */}
+          <div className="pt-3 border-t border-dashed border-border mt-2">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-muted-foreground">
+                Model override{" "}
+                <span className="text-[10px] text-muted-foreground/60">(optional)</span>
+              </p>
+              {hasModelOverride && !showModelOverride && (
+                <button
+                  onClick={clearModelOverride}
+                  className="text-[10px] text-destructive hover:underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {hasModelOverride && !showModelOverride ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded flex-1 truncate">
+                  {existingProviders[0].model}
+                </span>
+                <button
+                  onClick={() => {
+                    setOverrideBaseUrl(existingProviders[0].base_url);
+                    setOverrideModel(existingProviders[0].model);
+                    setOverrideApiKey(existingProviders[0].api_key);
+                    setShowModelOverride(true);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Edit
+                </button>
+              </div>
+            ) : showModelOverride ? (
+              <div className="space-y-2">
+                <LabeledInput
+                  label="Base URL"
+                  value={overrideBaseUrl}
+                  onChange={setOverrideBaseUrl}
+                  placeholder="https://api.openai.com/v1"
+                />
+                <LabeledInput
+                  label="Model"
+                  value={overrideModel}
+                  onChange={setOverrideModel}
+                  placeholder="gpt-4o"
+                />
+                <LabeledInput
+                  label="API Key"
+                  value={overrideApiKey}
+                  onChange={setOverrideApiKey}
+                  placeholder="sk-…"
+                  type="password"
+                />
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" onClick={saveModelOverride}>
+                    <Save className="h-3 w-3 mr-1" /> Save override
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowModelOverride(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowModelOverride(true)}
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" /> Assign a specific model to this user
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -1108,7 +1257,14 @@ function DataManager() {
   const [userId, setUserId] = useState("");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const { toast } = useToasts();
+
+  useEffect(() => {
+    apiFetch<{ contacts: Contact[] }>("/api/admin/contacts")
+      .then((r) => setAllContacts(r.contacts || []))
+      .catch(() => {});
+  }, []);
 
   async function loadUserData() {
     if (!userId.trim()) {
@@ -1145,13 +1301,28 @@ function DataManager() {
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        <input
-          type="text"
-          placeholder="Enter user ID (e.g. person:alon)"
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-          className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        />
+        {allContacts.length > 0 ? (
+          <select
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Select a person…</option>
+            {allContacts.map((c) => (
+              <option key={c.canonical_id} value={c.canonical_id}>
+                {c.name} ({c.canonical_id})
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            placeholder="Enter user ID (e.g. person:alon)"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        )}
         <Button onClick={loadUserData} disabled={loading}>
           {loading ? "Loading…" : "Load Data"}
         </Button>
@@ -1168,6 +1339,7 @@ function DataManager() {
                   key={note.id}
                   type="note"
                   item={note}
+                  contacts={allContacts}
                   onUpdate={(updates) => updateData('notes', note.id, updates)}
                 />
               )) || <p className="text-sm text-muted-foreground">No notes</p>}
@@ -1183,6 +1355,7 @@ function DataManager() {
                   key={task.id}
                   type="task"
                   item={task}
+                  contacts={allContacts}
                   onUpdate={(updates) => updateData('tasks', task.id, updates)}
                 />
               )) || <p className="text-sm text-muted-foreground">No tasks</p>}
@@ -1198,6 +1371,7 @@ function DataManager() {
                   key={topic.id}
                   type="topic"
                   item={topic}
+                  contacts={allContacts}
                   onUpdate={(updates) => updateData('topics', topic.id, updates)}
                 />
               )) || <p className="text-sm text-muted-foreground">No topics</p>}
@@ -1225,7 +1399,7 @@ function DataManager() {
   );
 }
 
-function DataItem({ type, item, onUpdate }: { type: string; item: any; onUpdate: (updates: any) => void }) {
+function DataItem({ type, item, contacts, onUpdate }: { type: string; item: any; contacts: Contact[]; onUpdate: (updates: any) => void }) {
   const [editing, setEditing] = useState(false);
   const [userId, setUserId] = useState(item.user_id || "");
   const [authorizedIds, setAuthorizedIds] = useState(item.authorized_ids?.join(", ") || "");
@@ -1262,14 +1436,29 @@ function DataItem({ type, item, onUpdate }: { type: string; item: any; onUpdate:
       {editing ? (
         <div className="space-y-2">
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">User ID</label>
-            <input
-              type="text"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
-              placeholder="e.g. person:alon"
-            />
+            <label className="block text-xs text-muted-foreground mb-1">Person</label>
+            {contacts.length > 0 ? (
+              <select
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
+              >
+                <option value="">No person</option>
+                {contacts.map((c) => (
+                  <option key={c.canonical_id} value={c.canonical_id}>
+                    {c.name} ({c.canonical_id})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
+                placeholder="e.g. person:alon"
+              />
+            )}
           </div>
           <div>
             <label className="block text-xs text-muted-foreground mb-1">Authorized IDs (comma-separated)</label>
@@ -1288,7 +1477,7 @@ function DataItem({ type, item, onUpdate }: { type: string; item: any; onUpdate:
         </div>
       ) : (
         <div className="text-xs text-muted-foreground">
-          <p>User ID: {item.user_id || 'none'}</p>
+          <p>Person: {contacts.find((c) => c.canonical_id === item.user_id)?.name || item.user_id || 'none'}</p>
           <p>Authorized: {item.authorized_ids?.join(", ") || 'none'}</p>
         </div>
       )}

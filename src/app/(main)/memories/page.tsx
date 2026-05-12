@@ -8,21 +8,33 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Md } from "@/components/ui/md";
 import type { Memory } from "@/types/api";
+import { useContacts } from "@/hooks/use-contacts";
+import { useSelectedUser } from "@/context/user-context";
+import { Users } from "lucide-react";
 
-type EditState = { content: string; category: string };
+type EditState = { content: string; category: string; authorized_ids: string[] };
 
 function MemoryForm({
   initial,
   onSave,
   onCancel,
   saving,
+  contacts,
 }: {
   initial: EditState;
   onSave: (s: EditState) => void;
   onCancel: () => void;
   saving: boolean;
+  contacts: Array<{ canonical_id: string; name: string }>;
 }) {
   const [s, setS] = useState(initial);
+  const togglePerson = (id: string) =>
+    setS((p) => ({
+      ...p,
+      authorized_ids: p.authorized_ids.includes(id)
+        ? p.authorized_ids.filter((x) => x !== id)
+        : [...p.authorized_ids, id],
+    }));
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
       <div>
@@ -43,6 +55,24 @@ function MemoryForm({
           placeholder="e.g. preference, fact, context…"
         />
       </div>
+      {contacts.length > 0 && (
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">People</label>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            {contacts.map((c) => (
+              <label key={c.canonical_id} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={s.authorized_ids.includes(c.canonical_id)}
+                  onChange={() => togglePerson(c.canonical_id)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                {c.name}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex gap-2 justify-end">
         <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
           <X className="h-3.5 w-3.5 mr-1" /> Cancel
@@ -61,11 +91,18 @@ export default function MemoriesPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const qc = useQueryClient();
+  const { data: contacts = [] } = useContacts();
+  const { selectedUserId, selectedUserName } = useSelectedUser();
 
   const { data: memories = [], isLoading, error } = useQuery<Memory[]>({
-    queryKey: ["memories", submitted],
-    queryFn: () =>
-      fetch(`/api/memories${submitted ? `?q=${encodeURIComponent(submitted)}` : ""}`).then((r) => r.json()),
+    queryKey: ["memories", submitted, selectedUserId],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (submitted) params.set("q", submitted);
+      if (selectedUserId) params.set("user_id", selectedUserId);
+      const qs = params.toString();
+      return fetch(`/api/memories${qs ? `?${qs}` : ""}`).then((r) => r.json());
+    },
   });
 
   const create = useMutation({
@@ -93,14 +130,21 @@ export default function MemoriesPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Memory</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Memory</h1>
+          {selectedUserName && (
+            <p className="text-xs text-primary mt-0.5">Viewing {selectedUserName}&apos;s memory</p>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["memories"] })}>
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button size="sm" onClick={() => { setShowAdd(true); setEditId(null); }}>
-            <Plus className="h-4 w-4 mr-1" /> Add
-          </Button>
+          {selectedUserId && (
+            <Button size="sm" onClick={() => { setShowAdd(true); setEditId(null); }}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          )}
         </div>
       </div>
 
@@ -111,13 +155,24 @@ export default function MemoriesPage() {
         </div>
       )}
 
-      {showAdd && (
+      {contacts.length > 0 && !selectedUserId && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          <Users className="h-4 w-4 shrink-0" />
+          Select a profile from the sidebar to view and manage memories.
+        </div>
+      )}
+
+      {showAdd && selectedUserId && (
         <div className="mb-4">
           <MemoryForm
-            initial={{ content: "", category: "" }}
-            onSave={(s) => create.mutate({ content: s.content, category: s.category || undefined })}
+            initial={{ content: "", category: "", authorized_ids: [selectedUserId] }}
+            onSave={(s) => {
+              const ids = [...new Set([selectedUserId, ...s.authorized_ids].filter(Boolean))];
+              create.mutate({ content: s.content, category: s.category || undefined, user_id: selectedUserId, authorized_ids: ids });
+            }}
             onCancel={() => setShowAdd(false)}
             saving={create.isPending}
+            contacts={contacts}
           />
         </div>
       )}
@@ -151,21 +206,33 @@ export default function MemoriesPage() {
             return editId === m.id ? (
               <MemoryForm
                 key={m.id}
-                initial={{ content: m.content, category: category ?? "" }}
-                onSave={(s) => update.mutate({ id: m.id, body: { content: s.content, category: s.category || undefined } })}
+                initial={{ content: m.content, category: category ?? "", authorized_ids: m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [] }}
+                onSave={(s) => {
+                  const ids = [...new Set([selectedUserId, ...s.authorized_ids].filter(Boolean))];
+                  update.mutate({ id: m.id, body: { content: s.content, category: s.category || undefined, user_id: selectedUserId || undefined, authorized_ids: ids } });
+                }}
                 onCancel={() => setEditId(null)}
                 saving={update.isPending}
+                contacts={contacts}
               />
             ) : (
               <div key={m.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
                 <Brain className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
                 <div className="flex-1 min-w-0">
                   <Md className="text-sm">{m.content}</Md>
-                  {category && (
-                    <Badge variant="secondary" className="mt-1.5 text-xs capitalize">
-                      {category.toLowerCase()}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {category && (
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        {category.toLowerCase()}
+                      </Badge>
+                    )}
+                    {(() => {
+                      const ids: string[] = (m.metadata as any)?.authorized_ids?.length ? (m.metadata as any).authorized_ids : m.authorized_ids?.length ? m.authorized_ids : (m.owner_id || m.user_id) ? [m.owner_id || m.user_id || ""] : [];
+                      if (!ids.length) return null;
+                      const names = ids.map((id: string) => contacts.find((c) => c.canonical_id === id)?.name ?? id.replace(/^person:/, ""));
+                      return <span className="text-xs text-muted-foreground/50 truncate">{names.join(", ")}</span>;
+                    })()}
+                  </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
                   onClick={() => { setEditId(m.id); setShowAdd(false); }}>
