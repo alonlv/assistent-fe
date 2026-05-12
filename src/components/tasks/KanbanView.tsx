@@ -75,12 +75,12 @@ function KanbanCard({ task }: { task: Task }) {
         )}
       </div>
 
-      {(task.owner_id || task.user_id || task.person_id) && (
+      {(task.owner_id || task.user_id || task.owner_id) && (
         <p
           className="text-xs text-muted-foreground/40 truncate text-right"
-          title={task.owner_id || task.user_id || task.person_id}
+          title={task.owner_id || task.user_id || task.owner_id}
         >
-          {(task.owner_id || task.user_id || task.person_id || "").replace(/^person:/, "")}
+          {(task.owner_id || task.user_id || task.owner_id || "").replace(/^person:/, "")}
         </p>
       )}
     </div>

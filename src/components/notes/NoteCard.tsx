@@ -12,7 +12,7 @@ export function NoteCard({ note, topicColor }: { note: Note; topicColor?: string
   const preview = stripHtml(note.content).slice(0, 100);
   const date = new Date(note.updated_at || note.created_at).toLocaleDateString();
   const displayTitle = note.title || "Untitled";
-  const owner = note.owner_id || note.user_id || note.person_id || null;
+  const owner = note.owner_id || note.user_id || note.owner_id || null;
 
   return (
     <Link href={`/notes/${note.id}`} className="block group">
