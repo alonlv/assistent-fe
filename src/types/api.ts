@@ -1,8 +1,12 @@
-export interface Topic {
+export interface BaseEntity {
   id: string;
-  person_id: string;
   user_id: string;
   owner_id: string;
+  context_id?: string;
+  authorized_ids?: string[];
+}
+
+export interface Topic extends BaseEntity {
   name: string;
   color: string;
   created_at: string;
@@ -10,28 +14,18 @@ export interface Topic {
   note_count: number;
 }
 
-export interface Note {
-  id: string;
-  person_id: string;
-  user_id: string;
-  owner_id: string;
+export interface Note extends BaseEntity {
   title: string;
   content: string;
   topic: string;
   created_at: string;
   updated_at: string;
-  context_id?: string;
-  authorized_ids?: string[];
 }
 
 export type Priority = "none" | "low" | "medium" | "high";
 export type TaskStatus = "todo" | "in_progress" | "done";
 
-export interface Task {
-  id: string;
-  person_id: string;
-  user_id: string;
-  owner_id: string;
+export interface Task extends BaseEntity {
   title: string;
   done: boolean;
   status: TaskStatus;
@@ -39,37 +33,23 @@ export interface Task {
   due_date: string | null;
   created_at: string;
   updated_at: string;
-  context_id?: string;
-  authorized_ids?: string[];
 }
 
-export interface Reminder {
-  id: string;
-  person_id: string;
-  owner_id: string;
-  user_id: string;
+export interface Reminder extends BaseEntity {
   platform: string;
   channel_id: string;
   message: string;
   run_at: string | null;
   cron: string | null;
-  context_id?: string;
-  authorized_ids?: string[];
 }
 
-export interface ProactiveTask {
-  id: string;
-  person_id: string;
-  owner_id: string;
-  user_id: string;
+export interface ProactiveTask extends BaseEntity {
   platform: string;
   channel_id: string;
   instruction: string;
   run_at: string | null;
   cron: string | null;
   last_run_at: string | null;
-  context_id?: string;
-  authorized_ids?: string[];
 }
 
 export interface Memory {
