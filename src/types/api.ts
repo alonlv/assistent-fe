@@ -30,6 +30,7 @@ export interface Task extends BaseEntity {
   done: boolean;
   status: TaskStatus;
   priority: Priority;
+  tags?: string[];
   due_date: string | null;
   created_at: string;
   updated_at: string;

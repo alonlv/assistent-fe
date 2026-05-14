@@ -26,12 +26,16 @@ export default function TasksPage() {
   const { data: tasks = [], isLoading, error: tasksError } = useTasks(selectedUserId ?? undefined);
   const [view, setView] = useState<View>("list");
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
+  const [tagFilter, setTagFilter] = useState<string>("");
 
   const overdue = tasks.filter(
     (t) => t.due_date && new Date(t.due_date) < new Date() && t.status !== "done"
   );
 
-  const filtered = filter === "all" ? tasks : tasks.filter((t) => t.status === filter);
+  let filtered = filter === "all" ? tasks : tasks.filter((t) => t.status === filter);
+  if (tagFilter.trim() !== "") {
+    filtered = filtered.filter((t) => (t.tags ?? []).includes(tagFilter.trim()));
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6">
@@ -82,8 +86,8 @@ export default function TasksPage() {
         <AddTaskInput />
       </div>
 
-      {/* Filter pills */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      {/* Filter pills and tag filter */}
+      <div className="flex flex-wrap gap-2 mb-4 items-center">
         {FILTERS.map(({ label, value }) => (
           <button
             key={value}
@@ -103,6 +107,13 @@ export default function TasksPage() {
             )}
           </button>
         ))}
+
+        <input
+          placeholder="Filter by tag"
+          value={tagFilter}
+          onChange={(e) => setTagFilter(e.target.value)}
+          className="ml-2 text-xs rounded-full px-3 py-1 border border-border"
+        />
       </div>
 
       {isLoading ? (

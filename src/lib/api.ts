@@ -39,8 +39,14 @@ export const api = {
       apiFetch<void>(`/api/notes/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   tasks: {
-    list: (userId?: string) => apiFetch<Task[]>(`/api/tasks${userId ? `?user_id=${encodeURIComponent(userId)}` : ""}`),
-    create: (body: { title: string; status?: TaskStatus; priority?: Priority; due_date?: string; user_id?: string }) =>
+    list: (userId?: string, tag?: string) => {
+      const params = new URLSearchParams();
+      if (userId) params.set("user_id", userId);
+      if (tag) params.set("tag", tag);
+      const qs = params.toString();
+      return apiFetch<Task[]>(`/api/tasks${qs ? `?${qs}` : ""}`);
+    },
+    create: (body: { title: string; status?: TaskStatus; priority?: Priority; tags?: string[]; due_date?: string; user_id?: string }) =>
       apiFetch<Task>("/api/tasks", { method: "POST", body: JSON.stringify(body) }),
     update: (
       id: string,
@@ -49,6 +55,7 @@ export const api = {
         done: boolean;
         status: TaskStatus;
         priority: Priority;
+        tags: string[];
         due_date: string;
         clear_due_date: boolean;
         user_id: string;
