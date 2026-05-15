@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { Task } from "@/types/api";
 import { useUpdateTask, useDeleteTask } from "@/hooks/use-tasks";
 import { Button } from "@/components/ui/button";
-import { Trash2, Calendar } from "lucide-react";
+import { Trash2, Calendar, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   PRIORITY_COLORS,
@@ -19,12 +19,28 @@ import type { TaskStatus } from "@/types/api";
 
 const STATUS_CYCLE: TaskStatus[] = ["todo", "in_progress", "done"];
 
-export function TaskItem({ task, showStatus = false }: { task: Task; showStatus?: boolean }) {
+export function TaskItem({ task, showStatus = false, onTagClick }: { task: Task; showStatus?: boolean; onTagClick?: (tag: string) => void }) {
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const [showDateInput, setShowDateInput] = useState(false);
+  const [editingTag, setEditingTag] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const tagInputRef = useRef<HTMLInputElement>(null);
   const dueLabel = formatDueDate(task.due_date);
   const overdue = isOverdue(task.due_date) && task.status !== "done";
+
+  function addTag() {
+    const tag = tagInput.trim();
+    if (!tag) { setEditingTag(false); return; }
+    const next = [...new Set([...(task.tags ?? []), tag])];
+    updateTask.mutate({ id: task.id, tags: next });
+    setTagInput("");
+    setEditingTag(false);
+  }
+
+  function removeTag(tag: string) {
+    updateTask.mutate({ id: task.id, tags: (task.tags ?? []).filter((t) => t !== tag) });
+  }
 
   function cycleStatus() {
     const idx = STATUS_CYCLE.indexOf(task.status);
@@ -93,14 +109,41 @@ export function TaskItem({ task, showStatus = false }: { task: Task; showStatus?
           )}
 
           {/* Tags */}
-          {(task.tags ?? []).length > 0 && (
-            <div className="flex items-center gap-1">
-              {(task.tags ?? []).slice(0, 5).map((tag) => (
-                <span key={tag} className="text-xs bg-secondary px-2 py-0.5 rounded-full">
-                  #{tag}
-                </span>
-              ))}
-            </div>
+          {(task.tags ?? []).map((tag) => (
+            <span
+              key={tag}
+              className="group/tag flex items-center gap-0.5 text-xs bg-secondary px-2 py-0.5 rounded-full cursor-pointer hover:bg-secondary/70"
+              onClick={() => onTagClick ? onTagClick(tag) : undefined}
+            >
+              #{tag}
+              <button
+                className="opacity-0 group-hover/tag:opacity-100 ml-0.5 text-muted-foreground hover:text-destructive leading-none"
+                onClick={(e) => { e.stopPropagation(); removeTag(tag); }}
+                title="Remove tag"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          {editingTag ? (
+            <input
+              ref={tagInputRef}
+              autoFocus
+              className="text-xs border border-input rounded-full px-2 py-0.5 w-24 outline-none"
+              placeholder="tag name"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addTag(); if (e.key === "Escape") setEditingTag(false); }}
+              onBlur={addTag}
+            />
+          ) : (
+            <button
+              className="opacity-0 group-hover:opacity-60 text-xs text-muted-foreground hover:opacity-100"
+              title="Add tag"
+              onClick={() => setEditingTag(true)}
+            >
+              <Tag className="h-3 w-3" />
+            </button>
           )}
 
           {/* Date picker trigger */}

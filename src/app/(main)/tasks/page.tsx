@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTasks } from "@/hooks/use-tasks";
+import { useTasks, useTags } from "@/hooks/use-tasks";
 import { TaskList } from "@/components/tasks/TaskList";
 import { KanbanView } from "@/components/tasks/KanbanView";
 import { AddTaskInput } from "@/components/tasks/AddTaskInput";
@@ -24,6 +24,7 @@ const FILTERS: Array<{ label: string; value: TaskStatus | "all" }> = [
 export default function TasksPage() {
   const { selectedUserId, selectedUserName } = useSelectedUser();
   const { data: tasks = [], isLoading, error: tasksError } = useTasks(selectedUserId ?? undefined);
+  const { data: allTags = [] } = useTags();
   const [view, setView] = useState<View>("list");
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
   const [tagFilter, setTagFilter] = useState<string>("");
@@ -108,12 +109,28 @@ export default function TasksPage() {
           </button>
         ))}
 
-        <input
-          placeholder="Filter by tag"
-          value={tagFilter}
-          onChange={(e) => setTagFilter(e.target.value)}
-          className="ml-2 text-xs rounded-full px-3 py-1 border border-border"
-        />
+        {allTags.map((tag) => (
+          <button
+            key={tag}
+            onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+              tagFilter === tag
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            )}
+          >
+            #{tag}
+          </button>
+        ))}
+        {tagFilter && !allTags.includes(tagFilter) && (
+          <button
+            onClick={() => setTagFilter("")}
+            className="rounded-full px-3 py-1 text-xs font-medium bg-primary text-primary-foreground"
+          >
+            #{tagFilter} ×
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -125,7 +142,7 @@ export default function TasksPage() {
       ) : view === "kanban" ? (
         <KanbanView tasks={filtered} />
       ) : (
-        <TaskList tasks={filtered} showStatus={filter === "all"} />
+        <TaskList tasks={filtered} showStatus={filter === "all"} onTagClick={(tag) => setTagFilter(tagFilter === tag ? "" : tag)} />
       )}
     </div>
   );

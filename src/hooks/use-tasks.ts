@@ -11,6 +11,14 @@ export function useTasks(userId?: string) {
   });
 }
 
+export function useTags() {
+  return useQuery({
+    queryKey: ["tasks", "tags"],
+    queryFn: () => api.tasks.listTags(),
+    staleTime: 30_000,
+  });
+}
+
 export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({

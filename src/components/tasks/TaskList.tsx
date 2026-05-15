@@ -3,7 +3,7 @@
 import type { Task } from "@/types/api";
 import { TaskItem } from "./TaskItem";
 
-export function TaskList({ tasks, showStatus = false }: { tasks: Task[]; showStatus?: boolean }) {
+export function TaskList({ tasks, showStatus = false, onTagClick }: { tasks: Task[]; showStatus?: boolean; onTagClick?: (tag: string) => void }) {
   const open = tasks.filter((t) => t.status !== "done");
   const done = tasks.filter((t) => t.status === "done");
 
@@ -19,7 +19,7 @@ export function TaskList({ tasks, showStatus = false }: { tasks: Task[]; showSta
     <div>
       <div className="divide-y divide-border/50">
         {open.map((task) => (
-          <TaskItem key={task.id} task={task} showStatus={showStatus} />
+          <TaskItem key={task.id} task={task} showStatus={showStatus} onTagClick={onTagClick} />
         ))}
       </div>
       {done.length > 0 && (
@@ -29,7 +29,7 @@ export function TaskList({ tasks, showStatus = false }: { tasks: Task[]; showSta
           </p>
           <div className="divide-y divide-border/50 opacity-60">
             {done.map((task) => (
-              <TaskItem key={task.id} task={task} showStatus={showStatus} />
+              <TaskItem key={task.id} task={task} showStatus={showStatus} onTagClick={onTagClick} />
             ))}
           </div>
         </div>

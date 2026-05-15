@@ -75,6 +75,16 @@ function KanbanCard({ task }: { task: Task }) {
         )}
       </div>
 
+      {(task.tags ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {(task.tags ?? []).map((tag) => (
+            <span key={tag} className="text-xs bg-secondary px-2 py-0.5 rounded-full">
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
+
       {(task.owner_id || task.user_id || task.owner_id) && (
         <p
           className="text-xs text-muted-foreground/40 truncate text-right"

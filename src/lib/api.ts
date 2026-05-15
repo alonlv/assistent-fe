@@ -64,6 +64,7 @@ export const api = {
     ) => apiFetch<Task>(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     delete: (id: string) =>
       apiFetch<void>(`/api/tasks/${id}`, { method: "DELETE" }),
+    listTags: () => apiFetch<string[]>("/api/tasks/tags"),
   },
   topics: {
     list: () => apiFetch<Topic[]>("/api/topics"),
