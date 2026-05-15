@@ -7,19 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Trash2, Calendar, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  PRIORITY_COLORS,
+  PRIORITY_BADGE_COLORS,
   PRIORITY_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
   formatDueDate,
   isOverdue,
   nextPriority,
+  tagColor,
 } from "@/lib/task-utils";
 import type { TaskStatus } from "@/types/api";
 
 const STATUS_CYCLE: TaskStatus[] = ["todo", "in_progress", "done"];
 
-export function TaskItem({ task, showStatus = false, onTagClick }: { task: Task; showStatus?: boolean; onTagClick?: (tag: string) => void }) {
+export function TaskItem({ task, onTagClick }: { task: Task; showStatus?: boolean; onTagClick?: (tag: string) => void }) {
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const [showDateInput, setShowDateInput] = useState(false);
@@ -49,7 +50,7 @@ export function TaskItem({ task, showStatus = false, onTagClick }: { task: Task;
   }
 
   return (
-    <div className="flex items-start gap-3 py-2.5 px-3 rounded-lg hover:bg-accent/50 group">
+    <div className="flex items-start gap-3 py-3 px-3 rounded-lg hover:bg-accent/40 group transition-colors">
       <input
         type="checkbox"
         checked={task.status === "done"}
@@ -62,36 +63,37 @@ export function TaskItem({ task, showStatus = false, onTagClick }: { task: Task;
       <div className="flex-1 min-w-0">
         <span
           className={cn(
-            "text-sm block",
+            "text-sm leading-snug block",
             task.status === "done" && "line-through text-muted-foreground"
           )}
         >
           {task.title}
         </span>
 
-        <div className="flex items-center flex-wrap gap-1.5 mt-1">
-          {/* Priority dot — click to cycle */}
+        <div className="flex items-center flex-wrap gap-1.5 mt-1.5">
+          {/* Status badge — always visible, click to cycle */}
           <button
-            title={PRIORITY_LABELS[task.priority]}
-            onClick={() => updateTask.mutate({ id: task.id, priority: nextPriority(task.priority) })}
-            className={cn("h-2 w-2 rounded-full transition-transform hover:scale-125 shrink-0", {
-              "bg-muted-foreground/30": task.priority === "none",
-              "bg-blue-500": task.priority === "low",
-              "bg-yellow-500": task.priority === "medium",
-              "bg-red-500": task.priority === "high",
-            })}
-          />
+            onClick={cycleStatus}
+            title="Click to change status"
+            className={cn(
+              "rounded-full px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer",
+              STATUS_COLORS[task.status]
+            )}
+          >
+            {STATUS_LABELS[task.status]}
+          </button>
 
-          {/* Status badge — click to cycle (only when not in kanban) */}
-          {showStatus && (
+          {/* Priority badge — only when not "none" */}
+          {task.priority !== "none" && (
             <button
-              onClick={cycleStatus}
+              title={PRIORITY_LABELS[task.priority]}
+              onClick={() => updateTask.mutate({ id: task.id, priority: nextPriority(task.priority) })}
               className={cn(
-                "rounded-full px-2 py-0.5 text-xs font-medium transition-colors",
-                STATUS_COLORS[task.status]
+                "rounded-full px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer",
+                PRIORITY_BADGE_COLORS[task.priority]
               )}
             >
-              {STATUS_LABELS[task.status]}
+              {PRIORITY_LABELS[task.priority]}
             </button>
           )}
 
@@ -112,12 +114,15 @@ export function TaskItem({ task, showStatus = false, onTagClick }: { task: Task;
           {(task.tags ?? []).map((tag) => (
             <span
               key={tag}
-              className="group/tag flex items-center gap-0.5 text-xs bg-secondary px-2 py-0.5 rounded-full cursor-pointer hover:bg-secondary/70"
-              onClick={() => onTagClick ? onTagClick(tag) : undefined}
+              className={cn(
+                "group/tag flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full cursor-pointer transition-colors",
+                tagColor(tag)
+              )}
+              onClick={() => onTagClick?.(tag)}
             >
               #{tag}
               <button
-                className="opacity-0 group-hover/tag:opacity-100 ml-0.5 text-muted-foreground hover:text-destructive leading-none"
+                className="opacity-0 group-hover/tag:opacity-100 ml-0.5 leading-none hover:text-red-600"
                 onClick={(e) => { e.stopPropagation(); removeTag(tag); }}
                 title="Remove tag"
               >
@@ -125,11 +130,12 @@ export function TaskItem({ task, showStatus = false, onTagClick }: { task: Task;
               </button>
             </span>
           ))}
+
           {editingTag ? (
             <input
               ref={tagInputRef}
               autoFocus
-              className="text-xs border border-input rounded-full px-2 py-0.5 w-24 outline-none"
+              className="text-xs border border-input rounded-full px-2 py-0.5 w-24 outline-none bg-background"
               placeholder="tag name"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
@@ -151,7 +157,7 @@ export function TaskItem({ task, showStatus = false, onTagClick }: { task: Task;
             <input
               type="date"
               autoFocus
-              className="text-xs border border-input rounded px-1 py-0.5"
+              className="text-xs border border-input rounded px-1 py-0.5 bg-background"
               defaultValue={task.due_date ? task.due_date.split("T")[0] : ""}
               onBlur={(e) => {
                 setShowDateInput(false);
@@ -160,16 +166,6 @@ export function TaskItem({ task, showStatus = false, onTagClick }: { task: Task;
                 else updateTask.mutate({ id: task.id, clear_due_date: true });
               }}
             />
-          )}
-
-          {/* Owner */}
-          {(task.owner_id || task.user_id || task.owner_id) && (
-            <span
-              className="text-xs text-muted-foreground/40 truncate"
-              title={task.owner_id || task.user_id || task.owner_id}
-            >
-              {(task.owner_id || task.user_id || task.owner_id || "").replace(/^person:/, "")}
-            </span>
           )}
         </div>
       </div>

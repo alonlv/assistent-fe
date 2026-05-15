@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Trash2, Calendar, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  PRIORITY_COLORS,
+  PRIORITY_BADGE_COLORS,
+  PRIORITY_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
   formatDueDate,
   isOverdue,
   nextPriority,
+  tagColor,
 } from "@/lib/task-utils";
 
 const COLUMNS: TaskStatus[] = ["todo", "in_progress", "done"];
@@ -43,17 +45,16 @@ function KanbanCard({ task }: { task: Task }) {
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          {/* Priority dot */}
-          <button
-            title="Click to change priority"
-            onClick={() => updateTask.mutate({ id: task.id, priority: nextPriority(task.priority) })}
-            className={cn("h-2 w-2 rounded-full transition-transform hover:scale-125", {
-              "bg-muted-foreground/30": task.priority === "none",
-              "bg-blue-500": task.priority === "low",
-              "bg-yellow-500": task.priority === "medium",
-              "bg-red-500": task.priority === "high",
-            })}
-          />
+          {/* Priority badge */}
+          {task.priority !== "none" && (
+            <button
+              title="Click to change priority"
+              onClick={() => updateTask.mutate({ id: task.id, priority: nextPriority(task.priority) })}
+              className={cn("rounded-full px-2 py-0.5 text-xs font-medium transition-colors", PRIORITY_BADGE_COLORS[task.priority])}
+            >
+              {PRIORITY_LABELS[task.priority]}
+            </button>
+          )}
           {dueLabel && (
             <span className={cn("text-xs flex items-center gap-0.5", overdue ? "text-red-500" : "text-muted-foreground")}>
               <Calendar className="h-3 w-3" />
@@ -78,7 +79,7 @@ function KanbanCard({ task }: { task: Task }) {
       {(task.tags ?? []).length > 0 && (
         <div className="flex flex-wrap gap-1">
           {(task.tags ?? []).map((tag) => (
-            <span key={tag} className="text-xs bg-secondary px-2 py-0.5 rounded-full">
+            <span key={tag} className={cn("text-xs px-2 py-0.5 rounded-full", tagColor(tag))}>
               #{tag}
             </span>
           ))}

@@ -9,17 +9,20 @@ import { Button } from "@/components/ui/button";
 import { List, LayoutGrid, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TaskStatus } from "@/types/api";
-import { STATUS_LABELS } from "@/lib/task-utils";
+import { STATUS_LABELS, tagColor } from "@/lib/task-utils";
 import { useSelectedUser } from "@/context/user-context";
 
 type View = "list" | "kanban";
 
-const FILTERS: Array<{ label: string; value: TaskStatus | "all" }> = [
+const STATUS_FILTERS: Array<{ label: string; value: TaskStatus | "all" }> = [
   { label: "All", value: "all" },
   { label: STATUS_LABELS.todo, value: "todo" },
   { label: STATUS_LABELS.in_progress, value: "in_progress" },
   { label: STATUS_LABELS.done, value: "done" },
 ];
+
+const STATUS_ACTIVE = "bg-primary text-primary-foreground";
+const STATUS_INACTIVE = "bg-secondary text-secondary-foreground hover:bg-secondary/80";
 
 export default function TasksPage() {
   const { selectedUserId, selectedUserName } = useSelectedUser();
@@ -40,6 +43,7 @@ export default function TasksPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Tasks</h1>
@@ -69,80 +73,97 @@ export default function TasksPage() {
         </div>
       </div>
 
+      {/* Error / overdue alerts */}
       {tasksError && (
         <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {tasksError.message}
         </div>
       )}
-
       {overdue.length > 0 && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:border-red-900 dark:text-red-400">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {overdue.length} task{overdue.length > 1 ? "s" : ""} overdue
         </div>
       )}
 
-      <div className="mb-4">
+      {/* Add task */}
+      <div className="mb-5">
         <AddTaskInput />
       </div>
 
-      {/* Filter pills and tag filter */}
-      <div className="flex flex-wrap gap-2 mb-4 items-center">
-        {FILTERS.map(({ label, value }) => (
-          <button
-            key={value}
-            onClick={() => setFilter(value)}
-            className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-              filter === value
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            )}
-          >
-            {label}
-            {value !== "all" && (
-              <span className="ml-1 opacity-70">
-                ({tasks.filter((t) => t.status === value).length})
-              </span>
-            )}
-          </button>
-        ))}
+      {/* Filters — two rows */}
+      <div className="mb-4 space-y-2">
+        {/* Status row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground font-medium w-10 shrink-0">Status</span>
+          {STATUS_FILTERS.map(({ label, value }) => (
+            <button
+              key={value}
+              onClick={() => setFilter(value)}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                filter === value ? STATUS_ACTIVE : STATUS_INACTIVE
+              )}
+            >
+              {label}
+              {value !== "all" && (
+                <span className="ml-1 opacity-60">
+                  ({tasks.filter((t) => t.status === value).length})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
-        {allTags.map((tag) => (
-          <button
-            key={tag}
-            onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}
-            className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-              tagFilter === tag
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+        {/* Tags row — only shown when there are tags */}
+        {allTags.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground font-medium w-10 shrink-0">Tags</span>
+            {allTags.map((tag) => {
+              const active = tagFilter === tag;
+              return (
+                <button
+                  key={tag}
+                  onClick={() => setTagFilter(active ? "" : tag)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-medium transition-colors ring-offset-background",
+                    active
+                      ? "ring-2 ring-ring ring-offset-1 " + tagColor(tag)
+                      : tagColor(tag)
+                  )}
+                >
+                  #{tag}
+                </button>
+              );
+            })}
+            {/* Active tag that's no longer in allTags */}
+            {tagFilter && !allTags.includes(tagFilter) && (
+              <button
+                onClick={() => setTagFilter("")}
+                className="rounded-full px-3 py-1 text-xs font-medium bg-primary text-primary-foreground"
+              >
+                #{tagFilter} ×
+              </button>
             )}
-          >
-            #{tag}
-          </button>
-        ))}
-        {tagFilter && !allTags.includes(tagFilter) && (
-          <button
-            onClick={() => setTagFilter("")}
-            className="rounded-full px-3 py-1 text-xs font-medium bg-primary text-primary-foreground"
-          >
-            #{tagFilter} ×
-          </button>
+          </div>
         )}
       </div>
 
+      {/* Task list / kanban */}
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />
+            <div key={i} className="h-12 rounded-lg bg-muted animate-pulse" />
           ))}
         </div>
       ) : view === "kanban" ? (
         <KanbanView tasks={filtered} />
       ) : (
-        <TaskList tasks={filtered} showStatus={filter === "all"} onTagClick={(tag) => setTagFilter(tagFilter === tag ? "" : tag)} />
+        <TaskList
+          tasks={filtered}
+          onTagClick={(tag) => setTagFilter(tagFilter === tag ? "" : tag)}
+        />
       )}
     </div>
   );

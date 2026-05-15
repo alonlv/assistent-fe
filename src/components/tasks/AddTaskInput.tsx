@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
 import { useCreateTask } from "@/hooks/use-tasks";
 import { useSelectedUser } from "@/context/user-context";
-import { Plus } from "lucide-react";
+import { Plus, Tag } from "lucide-react";
 
 export function AddTaskInput() {
   const [value, setValue] = useState("");
@@ -25,26 +24,24 @@ export function AddTaskInput() {
   }
 
   return (
-    <div className="relative flex gap-2 items-center">
-      <Plus className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-      <Input
-        className="pl-9"
+    <div className="flex items-center gap-0 rounded-lg border border-input bg-background shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-ring transition-shadow overflow-hidden">
+      <Plus className="ml-3 h-4 w-4 text-muted-foreground shrink-0" />
+      <input
+        className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
         placeholder="Add a task and press Enter…"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit();
-        }}
+        onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
         disabled={createTask.isPending}
       />
-      <Input
-        className="w-40"
-        placeholder="tags (comma separated)"
+      <div className="w-px bg-border self-stretch" />
+      <Tag className="ml-2.5 h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      <input
+        className="w-36 bg-transparent px-2 py-2.5 text-xs outline-none placeholder:text-muted-foreground disabled:opacity-50"
+        placeholder="tag, tag…"
         value={tags}
         onChange={(e) => setTags(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit();
-        }}
+        onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
         disabled={createTask.isPending}
       />
     </div>
