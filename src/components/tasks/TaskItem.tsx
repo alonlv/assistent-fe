@@ -83,19 +83,19 @@ export function TaskItem({ task, onTagClick }: { task: Task; showStatus?: boolea
             {STATUS_LABELS[task.status]}
           </button>
 
-          {/* Priority badge — only when not "none" */}
-          {task.priority !== "none" && (
-            <button
-              title={PRIORITY_LABELS[task.priority]}
-              onClick={() => updateTask.mutate({ id: task.id, priority: nextPriority(task.priority) })}
-              className={cn(
-                "rounded-full px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer",
-                PRIORITY_BADGE_COLORS[task.priority]
-              )}
-            >
-              {PRIORITY_LABELS[task.priority]}
-            </button>
-          )}
+          {/* Priority badge — always visible so user can click to cycle */}
+          <button
+            title="Click to change priority"
+            onClick={() => updateTask.mutate({ id: task.id, priority: nextPriority(task.priority) })}
+            className={cn(
+              "rounded-full px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer",
+              task.priority === "none"
+                ? "opacity-0 group-hover:opacity-60 bg-muted text-muted-foreground"
+                : PRIORITY_BADGE_COLORS[task.priority]
+            )}
+          >
+            {task.priority === "none" ? "Priority" : PRIORITY_LABELS[task.priority]}
+          </button>
 
           {/* Due date */}
           {dueLabel && (

@@ -44,20 +44,25 @@ export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...body }: TaskUpdateArgs) => api.tasks.update(id, body),
-    onMutate: async ({ id, done, status }) => {
+    onMutate: async ({ id, done, status, priority, tags }) => {
       await qc.cancelQueries({ queryKey: ["tasks"] });
-      const prev = qc.getQueryData<Task[]>(["tasks"]);
-      qc.setQueryData<Task[]>(["tasks"], (old) =>
+      const prev = qc.getQueriesData<Task[]>({ queryKey: ["tasks"] });
+      qc.setQueriesData<Task[]>({ queryKey: ["tasks"] }, (old) =>
         old?.map((t) => {
           if (t.id !== id) return t;
           const newStatus = status ?? (done !== undefined ? (done ? "done" : "todo") : t.status);
-          return { ...t, ...(status !== undefined && { status }), ...(done !== undefined && { done }), status: newStatus };
+          return {
+            ...t,
+            status: newStatus,
+            ...(priority !== undefined && { priority }),
+            ...(tags !== undefined && { tags }),
+          };
         }) ?? []
       );
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["tasks"], ctx.prev);
+      ctx?.prev?.forEach(([key, data]) => qc.setQueryData(key, data));
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
   });
@@ -69,12 +74,12 @@ export function useDeleteTask() {
     mutationFn: api.tasks.delete,
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: ["tasks"] });
-      const prev = qc.getQueryData<Task[]>(["tasks"]);
-      qc.setQueryData<Task[]>(["tasks"], (old) => old?.filter((t) => t.id !== id) ?? []);
+      const prev = qc.getQueriesData<Task[]>({ queryKey: ["tasks"] });
+      qc.setQueriesData<Task[]>({ queryKey: ["tasks"] }, (old) => old?.filter((t) => t.id !== id) ?? []);
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["tasks"], ctx.prev);
+      ctx?.prev?.forEach(([key, data]) => qc.setQueryData(key, data));
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
   });
