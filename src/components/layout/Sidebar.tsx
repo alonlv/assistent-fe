@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { FileText, CheckSquare, MessageSquare, Bell, Zap, Brain, Settings, LogOut, Plus, Hash, Users, X, Moon, Sun } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare, Bell, Zap, Brain, Settings, LogOut, Plus, Hash, Users, X, Moon, Sun, CalendarDays } from "lucide-react";
 import { useTheme } from "@/context/theme-context";
 import { cn } from "@/lib/utils";
 import { useTopics, useCreateTopic } from "@/hooks/use-topics";
@@ -14,6 +14,7 @@ import { useState } from "react";
 const MAIN_NAV = [
   { href: "/notes", label: "Notes", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/chat", label: "Chat", icon: MessageSquare },
 ];
 

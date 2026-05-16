@@ -76,3 +76,40 @@ export interface Memory {
   score: number;
   authorized_ids?: string[];
 }
+
+export type CalendarRole = "viewer" | "editor" | "admin";
+
+export interface CalendarPermission {
+  calendar_id: string;
+  user_id: string;
+  role: CalendarRole;
+  granted_by: string;
+  granted_at: string;
+}
+
+export interface Calendar {
+  id: string;
+  owner_id: string;
+  name: string;
+  description: string;
+  color: string;
+  permissions: CalendarPermission[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  calendar_id: string;
+  created_by: string;
+  title: string;
+  description: string;
+  start_time: string;
+  end_time: string | null;
+  all_day: boolean;
+  location: string;
+  visibility: "private" | "shared";
+  google_event_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
