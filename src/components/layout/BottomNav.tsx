@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { FileText, CheckSquare, MessageSquare, Bell, Brain, Zap, LogOut } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare, Bell, Brain, Zap, Settings, LogOut, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/theme-context";
 
 const navItems = [
   { href: "/notes", label: "Notes", icon: FileText },
@@ -12,11 +13,13 @@ const navItems = [
   { href: "/reminders", label: "Alerts", icon: Bell },
   { href: "/proactive-tasks", label: "Monitors", icon: Zap },
   { href: "/memories", label: "Memory", icon: Brain },
+  { href: "/admin", label: "Admin", icon: Settings },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -39,6 +42,13 @@ export function BottomNav() {
           {label}
         </Link>
       ))}
+      <button
+        onClick={toggleTheme}
+        className="flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium text-muted-foreground min-w-[3.5rem]"
+      >
+        {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        Theme
+      </button>
       <button
         onClick={handleLogout}
         className="flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium text-muted-foreground min-w-[3.5rem]"
