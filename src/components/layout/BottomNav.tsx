@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { FileText, CheckSquare, MessageSquare, Bell, Brain, Zap, Settings, LogOut, Moon, Sun } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare, Bell, Brain, Zap, Settings, LogOut, Moon, Sun, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/context/theme-context";
 
 const navItems = [
   { href: "/notes", label: "Notes", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/reminders", label: "Alerts", icon: Bell },
   { href: "/proactive-tasks", label: "Monitors", icon: Zap },
