@@ -109,7 +109,7 @@ export const api = {
       const qs = params.toString();
       return apiFetch<CalendarEvent[]>(`/api/calendars/${id}/events${qs ? `?${qs}` : ""}`);
     },
-    createEvent: (id: string, body: { title: string; start_time: string; end_time?: string; description?: string; location?: string; all_day?: boolean; visibility?: "private" | "shared"; created_by: string }) =>
+    createEvent: (id: string, body: { title: string; start_time: string; end_time?: string; description?: string; location?: string; all_day?: boolean; visibility?: "private" | "shared"; attendees?: string[]; remind_before_minutes?: number; created_by: string }) =>
       apiFetch<CalendarEvent>(`/api/calendars/${id}/events`, { method: "POST", body: JSON.stringify(body) }),
     updateEvent: (calendarId: string, eventId: string, body: { caller_id: string; title?: string; description?: string; start_time?: string; end_time?: string; clear_end_time?: boolean; location?: string; all_day?: boolean; visibility?: "private" | "shared" }) =>
       apiFetch<CalendarEvent>(`/api/calendars/${calendarId}/events/${eventId}`, { method: "PATCH", body: JSON.stringify(body) }),

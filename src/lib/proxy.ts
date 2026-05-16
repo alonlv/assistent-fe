@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 
-const BASE = process.env.BACKEND_URL;
+// BACKEND_INTERNAL_URL is used for server-to-server calls (Docker/Railway internal network).
+// Falls back to BACKEND_URL (public URL) when not set.
+const BASE = process.env.BACKEND_INTERNAL_URL || process.env.BACKEND_URL;
 const TOKEN = process.env.APP_API_TOKEN;
 
 if (!BASE || !TOKEN) {
   throw new Error(
-    "Missing required environment variables: BACKEND_URL and APP_API_TOKEN must both be set"
+    "Missing required environment variables: BACKEND_URL (or BACKEND_INTERNAL_URL) and APP_API_TOKEN must both be set"
   );
 }
 

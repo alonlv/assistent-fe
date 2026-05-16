@@ -15,6 +15,8 @@ interface Props {
     location: string;
     all_day: boolean;
     visibility: "private" | "shared";
+    attendees: string[];
+    remind_before_minutes: number | undefined;
   }) => void;
   onClose: () => void;
   loading?: boolean;
@@ -43,6 +45,9 @@ export function EventForm({ initial, onSave, onClose, loading }: Props) {
   const [location, setLocation] = useState(initial?.location ?? "");
   const [allDay, setAllDay] = useState(initial?.all_day ?? false);
   const [visibility, setVisibility] = useState<"private" | "shared">(initial?.visibility ?? "shared");
+  const [attendeeInput, setAttendeeInput] = useState("");
+  const [attendees, setAttendees] = useState<string[]>(initial?.attendees ?? []);
+  const [remindBefore, setRemindBefore] = useState<string>("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,6 +61,8 @@ export function EventForm({ initial, onSave, onClose, loading }: Props) {
       location: location.trim(),
       all_day: allDay,
       visibility,
+      attendees,
+      remind_before_minutes: remindBefore ? parseInt(remindBefore, 10) : undefined,
     });
   }
 
@@ -145,6 +152,61 @@ export function EventForm({ initial, onSave, onClose, loading }: Props) {
             >
               <option value="shared">Shared — visible to all calendar members</option>
               <option value="private">Private — only visible to you</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Invite attendees (email)</label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={attendeeInput}
+                onChange={(e) => setAttendeeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === ",") && attendeeInput.trim()) {
+                    e.preventDefault();
+                    if (!attendees.includes(attendeeInput.trim())) {
+                      setAttendees([...attendees, attendeeInput.trim()]);
+                    }
+                    setAttendeeInput("");
+                  }
+                }}
+                placeholder="email@example.com, press Enter to add"
+                className="flex-1 h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={() => {
+                if (attendeeInput.trim() && !attendees.includes(attendeeInput.trim())) {
+                  setAttendees([...attendees, attendeeInput.trim()]);
+                  setAttendeeInput("");
+                }
+              }}>Add</Button>
+            </div>
+            {attendees.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {attendees.map((a) => (
+                  <span key={a} className="flex items-center gap-1 text-xs bg-muted rounded-full px-2 py-0.5">
+                    {a}
+                    <button type="button" onClick={() => setAttendees(attendees.filter((x) => x !== a))} className="text-muted-foreground hover:text-foreground">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {attendees.length > 0 && <p className="text-xs text-muted-foreground mt-1">Invites sent via Google Calendar when you save.</p>}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Remind me before</label>
+            <select
+              value={remindBefore}
+              onChange={(e) => setRemindBefore(e.target.value)}
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">No reminder</option>
+              <option value="10">10 minutes before</option>
+              <option value="30">30 minutes before</option>
+              <option value="60">1 hour before</option>
+              <option value="120">2 hours before</option>
+              <option value="1440">1 day before</option>
             </select>
           </div>
 

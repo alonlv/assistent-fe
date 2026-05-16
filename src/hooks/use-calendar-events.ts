@@ -22,6 +22,8 @@ export function useCreateEvent(calendarId: string) {
       location?: string;
       all_day?: boolean;
       visibility?: "private" | "shared";
+      attendees?: string[];
+      remind_before_minutes?: number;
       created_by: string;
     }) => api.calendars.createEvent(calendarId, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["calendar-events", calendarId] }),

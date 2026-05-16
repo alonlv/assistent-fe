@@ -49,6 +49,7 @@ export default function CalendarDetailPage({ params }: { params: Promise<{ id: s
   async function handleSaveEvent(data: {
     title: string; description: string; start_time: string; end_time: string | undefined;
     location: string; all_day: boolean; visibility: "private" | "shared";
+    attendees: string[]; remind_before_minutes: number | undefined;
   }) {
     if (formMode === "create") {
       await createEvent.mutateAsync({ ...data, created_by: currentUserId });

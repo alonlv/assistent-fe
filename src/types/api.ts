@@ -109,6 +109,7 @@ export interface CalendarEvent {
   all_day: boolean;
   location: string;
   visibility: "private" | "shared";
+  attendees: string[];
   google_event_id: string | null;
   created_at: string;
   updated_at: string;
