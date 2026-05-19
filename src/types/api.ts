@@ -98,6 +98,25 @@ export interface Calendar {
   updated_at: string;
 }
 
+export interface JobRun {
+  job_name: string;
+  started_at: string;
+  status: "ok" | "error" | "skip";
+  message: string | null;
+  user_id: string | null;
+  duration_ms: number | null;
+}
+
+export interface JobStatus {
+  last_run: JobRun | null;
+  recent: JobRun[];
+  totals: { ok: number; error: number; skip: number };
+}
+
+export interface BackgroundStatusResponse {
+  jobs: Record<string, JobStatus>;
+}
+
 export interface CalendarEvent {
   id: string;
   calendar_id: string;

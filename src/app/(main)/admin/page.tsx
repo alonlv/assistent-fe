@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RotateCcw, Save, Plus, Trash2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import type { Contact } from "@/types/api";
+import type { BackgroundStatusResponse, Contact, JobRun, JobStatus } from "@/types/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ interface Toast {
   type: "success" | "error" | "info";
 }
 
-type Tab = "general" | "prompt" | "providers" | "contacts" | "data" | "heartbeat" | "memory";
+type Tab = "general" | "prompt" | "providers" | "contacts" | "data" | "heartbeat" | "memory" | "background";
 
 const DEFAULT_PROVIDER: LlmProvider = {
   base_url: "",
@@ -293,7 +293,7 @@ export default function AdminPage() {
 
       {/* Tab bar */}
       <div className="flex gap-0 border-b border-border mb-6 overflow-x-auto hide-scrollbar">
-        {(["general", "prompt", "providers", "contacts", "data", "heartbeat", "memory"] as Tab[]).map((t) => (
+        {(["general", "prompt", "providers", "contacts", "data", "heartbeat", "memory", "background"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -581,6 +581,11 @@ export default function AdminPage() {
       {/* ── Memory ─────────────────────────────────────────────────────────── */}
       {tab === "memory" && (
         <MemoryPanel toast={toast} />
+      )}
+
+      {/* ── Background status ──────────────────────────────────────────────── */}
+      {tab === "background" && (
+        <BackgroundStatusPanel />
       )}
 
       {/* Toasts */}
@@ -1686,5 +1691,197 @@ function PlatformBadge({ platform }: { platform: string }) {
     <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium tracking-wider uppercase", colors[p] || "bg-muted text-muted-foreground")}>
       {platform}
     </span>
+  );
+}
+
+// ─── Background status panel ──────────────────────────────────────────────────
+
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short", day: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+}
+
+function fmtDuration(ms: number | null | undefined) {
+  if (ms == null) return null;
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
+function StatusBadge({ status }: { status: JobRun["status"] | null }) {
+  if (!status) return <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-muted text-muted-foreground">never</span>;
+  const cls = {
+    ok: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    error: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    skip: "bg-muted text-muted-foreground",
+  }[status];
+  return <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider", cls)}>{status}</span>;
+}
+
+function JobCard({ name, data }: { name: string; data: JobStatus }) {
+  const [open, setOpen] = useState(false);
+  const lr = data.last_run;
+  const dur = fmtDuration(lr?.duration_ms);
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold break-all leading-tight">{name}</p>
+        <StatusBadge status={lr?.status ?? null} />
+      </div>
+
+      {/* Meta */}
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+        <span>Last run: <span className="text-foreground">{fmtDate(lr?.started_at)}</span></span>
+        {dur && <span>Duration: <span className="text-foreground">{dur}</span></span>}
+        {lr?.user_id && <span>User: <span className="text-foreground">{lr.user_id}</span></span>}
+      </div>
+
+      {/* Message */}
+      {lr?.message && (
+        <p className="text-xs bg-muted/50 rounded px-2.5 py-2 text-foreground/80 break-words leading-relaxed max-h-20 overflow-y-auto">
+          {lr.message}
+        </p>
+      )}
+
+      {/* Totals */}
+      <div className="flex gap-2 text-[11px]">
+        <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+          ✓ {data.totals.ok} ok
+        </span>
+        <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+          ✗ {data.totals.error} error
+        </span>
+        <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground">
+          → {data.totals.skip} skip
+        </span>
+      </div>
+
+      {/* History toggle */}
+      {data.recent.length > 0 && (
+        <div>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            History ({data.recent.length})
+          </button>
+          {open && (
+            <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
+              {data.recent.map((r, i) => (
+                <HistoryRow key={i} run={r} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistoryRow({ run }: { run: JobRun }) {
+  return (
+    <div className="flex items-start gap-2 py-1.5 border-b border-border/50 last:border-0 text-xs">
+      <span className="text-muted-foreground shrink-0 w-32">{fmtDate(run.started_at)}</span>
+      <StatusBadge status={run.status} />
+      <span className="text-foreground/70 flex-1 break-words leading-snug">{run.message || "—"}</span>
+      {run.duration_ms != null && (
+        <span className="text-muted-foreground shrink-0">{fmtDuration(run.duration_ms)}</span>
+      )}
+    </div>
+  );
+}
+
+const REFRESH_OPTIONS = [
+  { label: "Off", value: 0 },
+  { label: "10s", value: 10 },
+  { label: "30s", value: 30 },
+  { label: "1 min", value: 60 },
+];
+
+function BackgroundStatusPanel() {
+  const [data, setData] = useState<BackgroundStatusResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState(30);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiFetch<BackgroundStatusResponse>("/api/admin/background-status");
+      setData(res);
+      setLastUpdated(new Date());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (refreshInterval <= 0) return;
+    const id = setInterval(load, refreshInterval * 1000);
+    return () => clearInterval(id);
+  }, [refreshInterval, load]);
+
+  const jobs = data ? Object.entries(data.jobs) : [];
+
+  return (
+    <div className="space-y-5">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <RotateCcw className={cn("h-3.5 w-3.5 mr-1.5", loading && "animate-spin")} />
+          Refresh
+        </Button>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          Auto-refresh:
+          {REFRESH_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => setRefreshInterval(o.value)}
+              className={cn(
+                "px-2 py-1 rounded border text-xs transition-colors",
+                refreshInterval === o.value
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        {lastUpdated && (
+          <span className="text-xs text-muted-foreground ml-auto">
+            Updated {lastUpdated.toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
+
+      {!error && jobs.length === 0 && !loading && (
+        <Card>
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No background jobs have run yet. Jobs are tracked after the first run.
+          </p>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {jobs.map(([name, status]) => (
+          <JobCard key={name} name={name} data={status} />
+        ))}
+      </div>
+    </div>
   );
 }
