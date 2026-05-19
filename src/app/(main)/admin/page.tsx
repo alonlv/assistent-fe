@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { RotateCcw, Save, Plus, Trash2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
+import { RotateCcw, Save, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Settings, Cpu, Users, Brain, FileText, Database, Activity, Zap, type LucideIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import type { BackgroundStatusResponse, Contact, JobRun, JobStatus } from "@/types/api";
 
@@ -42,6 +42,43 @@ interface Toast {
 }
 
 type Tab = "general" | "prompt" | "providers" | "contacts" | "data" | "heartbeat" | "memory" | "background";
+
+type Group = "settings" | "ai" | "system";
+
+interface NavTab { id: Tab; label: string; icon: LucideIcon }
+interface NavGroup { id: Group; label: string; icon: LucideIcon; tabs: NavTab[] }
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "settings",
+    label: "Settings",
+    icon: Settings,
+    tabs: [
+      { id: "general",   label: "General",   icon: Settings },
+      { id: "providers", label: "Providers", icon: Cpu },
+      { id: "contacts",  label: "Contacts",  icon: Users },
+    ],
+  },
+  {
+    id: "ai",
+    label: "AI",
+    icon: Brain,
+    tabs: [
+      { id: "prompt",  label: "Prompts", icon: FileText },
+      { id: "memory",  label: "Memory",  icon: Brain },
+    ],
+  },
+  {
+    id: "system",
+    label: "System",
+    icon: Activity,
+    tabs: [
+      { id: "data",       label: "Data",       icon: Database },
+      { id: "heartbeat",  label: "Heartbeat",  icon: Zap },
+      { id: "background", label: "Background", icon: Activity },
+    ],
+  },
+];
 
 const DEFAULT_PROVIDER: LlmProvider = {
   base_url: "",
@@ -291,23 +328,55 @@ export default function AdminPage() {
         </Button>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-0 border-b border-border mb-6 overflow-x-auto hide-scrollbar">
-        {(["general", "prompt", "providers", "contacts", "data", "heartbeat", "memory", "background"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "px-5 py-2.5 text-sm font-medium capitalize transition-colors border-b-2 -mb-px",
-              tab === t
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t}
-          </button>
-        ))}
+      {/* Group selector */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {NAV_GROUPS.map((group) => {
+          const isActive = group.tabs.some((t) => t.id === tab);
+          const GroupIcon = group.icon;
+          return (
+            <button
+              key={group.id}
+              onClick={() => setTab(group.tabs[0].id)}
+              className={cn(
+                "flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <GroupIcon className="h-5 w-5" />
+              {group.label}
+            </button>
+          );
+        })}
       </div>
+
+      {/* Section sub-tabs */}
+      {NAV_GROUPS.map((group) => {
+        if (!group.tabs.some((t) => t.id === tab)) return null;
+        return (
+          <div key={group.id} className="flex gap-0 border-b border-border mb-6 overflow-x-auto hide-scrollbar">
+            {group.tabs.map((section) => {
+              const SectionIcon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setTab(section.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap",
+                    tab === section.id
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <SectionIcon className="h-3.5 w-3.5" />
+                  {section.label}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
 
       {/* ── General ─────────────────────────────────────────────────────── */}
       {tab === "general" && (
