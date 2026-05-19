@@ -41,7 +41,7 @@ interface Toast {
   type: "success" | "error" | "info";
 }
 
-type Tab = "general" | "prompt" | "providers" | "contacts" | "data" | "heartbeat";
+type Tab = "general" | "prompt" | "providers" | "contacts" | "data" | "heartbeat" | "memory";
 
 const DEFAULT_PROVIDER: LlmProvider = {
   base_url: "",
@@ -293,7 +293,7 @@ export default function AdminPage() {
 
       {/* Tab bar */}
       <div className="flex gap-0 border-b border-border mb-6 overflow-x-auto hide-scrollbar">
-        {(["general", "prompt", "providers", "contacts", "data", "heartbeat"] as Tab[]).map((t) => (
+        {(["general", "prompt", "providers", "contacts", "data", "heartbeat", "memory"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -576,6 +576,11 @@ export default function AdminPage() {
       {/* ── Heartbeat ──────────────────────────────────────────────────────── */}
       {tab === "heartbeat" && (
         <HeartbeatPanel contacts={contacts} toast={toast} />
+      )}
+
+      {/* ── Memory ─────────────────────────────────────────────────────────── */}
+      {tab === "memory" && (
+        <MemoryPanel toast={toast} />
       )}
 
       {/* Toasts */}
@@ -1615,6 +1620,55 @@ function HeartbeatPanel({
             </Button>
           </div>
         </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Memory panel ─────────────────────────────────────────────────────────────
+
+function MemoryPanel({
+  toast,
+}: {
+  toast: (msg: string, type: "success" | "error" | "info") => void;
+}) {
+  const [running, setRunning] = useState(false);
+
+  async function runConsolidation() {
+    setRunning(true);
+    try {
+      await apiFetch("/api/admin/memory/consolidate", { method: "POST" });
+      toast("Memory consolidation started in background", "success");
+    } catch (e) {
+      toast((e as Error).message, "error");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card title="How memory consolidation works">
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Every night at <strong>03:00</strong> (agent timezone) the system scans all memories for every
+          user and uses the LLM to merge redundant or overlapping entries within each category. For example,
+          two <em>ABOUT_ME</em> entries like <em>&quot;My name is Oded&quot;</em> and <em>&quot;I was born in 2000&quot;</em> become a
+          single entry: <em>&quot;My name is Oded and I was born in 2000.&quot;</em>
+        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed mt-2">
+          Use the button below to run the job immediately without waiting for the nightly schedule.
+          The job runs in the background — check the server logs for per-user merge counts.
+        </p>
+      </Card>
+
+      <Card title="Run now">
+        <Button onClick={runConsolidation} disabled={running}>
+          {running ? "Starting…" : "Consolidate memories now"}
+        </Button>
+        <p className="text-xs text-muted-foreground mt-2">
+          This triggers the same job that runs every night at 03:00. It may take a minute to complete
+          depending on how many users and memory entries exist.
+        </p>
       </Card>
     </div>
   );
