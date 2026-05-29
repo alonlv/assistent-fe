@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { FileText, CheckSquare, MessageSquare, Bell, Zap, Brain, Settings, LogOut, Plus, Hash, Users, X, Moon, Sun, CalendarDays } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare, Zap, Brain, Settings, LogOut, Plus, Hash, Users, X, Moon, Sun, CalendarDays } from "lucide-react";
 import { useTheme } from "@/context/theme-context";
 import { cn } from "@/lib/utils";
 import { useTopics, useCreateTopic } from "@/hooks/use-topics";
@@ -19,8 +19,7 @@ const MAIN_NAV = [
 ];
 
 const AGENT_NAV = [
-  { href: "/reminders", label: "Reminders", icon: Bell },
-  { href: "/proactive-tasks", label: "Monitors", icon: Zap },
+  { href: "/automations", label: "Automations", icon: Zap },
   { href: "/memories", label: "Memory", icon: Brain },
   { href: "/admin", label: "Admin", icon: Settings },
 ];

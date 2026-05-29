@@ -31,7 +31,7 @@ export const EMPTY_SCHEDULED_FORM: ScheduledFormState = {
 
 export function scheduledFormToPayload(
   f: ScheduledFormState,
-  textKey: "message" | "instruction",
+  textKey: "message" | "instruction" | "content",
   ownerId?: string | null
 ): Record<string, unknown> {
   const owner = ownerId || "web-user";

@@ -36,21 +36,18 @@ export interface Task extends BaseEntity {
   updated_at: string;
 }
 
-export interface Reminder extends BaseEntity {
-  platform: string;
-  channel_id: string;
-  message: string;
-  run_at: string | null;
-  cron: string | null;
-}
+export type AutomationKind = "reminder" | "monitor";
 
-export interface ProactiveTask extends BaseEntity {
+export interface Automation extends BaseEntity {
+  kind: AutomationKind;
   platform: string;
   channel_id: string;
-  instruction: string;
+  content: string;
   run_at: string | null;
   cron: string | null;
   last_run_at: string | null;
+  snooze_count: number;
+  awaiting_response: boolean;
 }
 
 export interface ContactIdentity {
