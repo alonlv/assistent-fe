@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Md } from "@/components/ui/md";
 import { cn } from "@/lib/utils";
 import { useSelectedUser } from "@/context/user-context";
+import { api } from "@/lib/api";
 
 interface Message {
   role: "user" | "assistant";
@@ -24,6 +25,19 @@ export default function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Load persisted conversation so it survives refreshes and reflects the same memory
+  // the assistant uses on Telegram/WhatsApp (when WEB_OWNER_USER_ID is configured).
+  useEffect(() => {
+    let cancelled = false;
+    api.chat
+      .history(selectedUserId || undefined)
+      .then((data) => {
+        if (!cancelled && data.messages.length) setMessages(data.messages);
+      })
+      .catch(() => { /* no history yet / backend unavailable — start fresh */ });
+    return () => { cancelled = true; };
+  }, [selectedUserId]);
 
   async function send() {
     const text = input.trim();

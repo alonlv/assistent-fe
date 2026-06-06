@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { FileText, CheckSquare, MessageSquare, Zap, Brain, Settings, LogOut, Plus, Hash, Users, X, Moon, Sun, CalendarDays } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare, Zap, Brain, Settings, LogOut, Plus, Hash, Users, X, Moon, Sun, CalendarDays, LayoutDashboard, Inbox } from "lucide-react";
 import { useTheme } from "@/context/theme-context";
 import { cn } from "@/lib/utils";
 import { useTopics, useCreateTopic } from "@/hooks/use-topics";
@@ -12,10 +12,12 @@ import { TOPIC_DOT } from "@/components/notes/TopicFilter";
 import { useState } from "react";
 
 const MAIN_NAV = [
+  { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/notes", label: "Notes", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/feed", label: "Inbox", icon: Inbox },
 ];
 
 const AGENT_NAV = [
@@ -55,7 +57,7 @@ export function Sidebar() {
   }
 
   function navLink(href: string, label: string, Icon: React.ElementType) {
-    const active = pathname.startsWith(href) && !activeTopic;
+    const active = (href === "/" ? pathname === "/" : pathname.startsWith(href)) && !activeTopic;
     return (
       <Link
         key={href}

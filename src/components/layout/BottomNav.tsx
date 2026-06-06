@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { FileText, CheckSquare, MessageSquare, Brain, Zap, Settings, LogOut, Moon, Sun, CalendarDays } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare, Brain, Zap, Settings, LogOut, Moon, Sun, CalendarDays, LayoutDashboard, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/context/theme-context";
 
 const navItems = [
+  { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/notes", label: "Notes", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/feed", label: "Inbox", icon: Inbox },
   { href: "/automations", label: "Automations", icon: Zap },
   { href: "/memories", label: "Memory", icon: Brain },
   { href: "/admin", label: "Admin", icon: Settings },
@@ -35,7 +37,7 @@ export function BottomNav() {
           href={href}
           className={cn(
             "flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium transition-colors min-w-[3.5rem]",
-            pathname.startsWith(href) ? "text-primary" : "text-muted-foreground"
+            (href === "/" ? pathname === "/" : pathname.startsWith(href)) ? "text-primary" : "text-muted-foreground"
           )}
         >
           <Icon className="h-5 w-5" />

@@ -1,4 +1,9 @@
-import type { Calendar, CalendarEvent, CalendarPermission, CalendarRole, Note, Priority, Task, TaskStatus, Topic } from "@/types/api";
+import type { Automation, AutomationKind, BackgroundStatusResponse, Calendar, CalendarEvent, CalendarPermission, CalendarRole, Note, Priority, Task, TaskStatus, Topic } from "@/types/api";
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  text: string;
+}
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -115,5 +120,28 @@ export const api = {
       apiFetch<CalendarEvent>(`/api/calendars/${calendarId}/events/${eventId}`, { method: "PATCH", body: JSON.stringify(body) }),
     deleteEvent: (calendarId: string, eventId: string, callerId: string) =>
       apiFetch<void>(`/api/calendars/${calendarId}/events/${eventId}?caller_id=${encodeURIComponent(callerId)}`, { method: "DELETE" }),
+  },
+  automations: {
+    list: (userId?: string, kind?: AutomationKind) => {
+      const params = new URLSearchParams();
+      if (userId) params.set("user_id", userId);
+      if (kind) params.set("kind", kind);
+      const qs = params.toString();
+      return apiFetch<Automation[]>(`/api/automations${qs ? `?${qs}` : ""}`);
+    },
+  },
+  backgroundStatus: {
+    get: () => apiFetch<BackgroundStatusResponse>("/api/admin/background-status"),
+  },
+  chat: {
+    send: (message: string, userId?: string) =>
+      apiFetch<{ reply: string }>("/api/chat", {
+        method: "POST",
+        body: JSON.stringify({ message, user_id: userId || "web-user" }),
+      }),
+    history: (userId?: string) => {
+      const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+      return apiFetch<{ messages: ChatTurn[] }>(`/api/chat/history${qs}`);
+    },
   },
 };
