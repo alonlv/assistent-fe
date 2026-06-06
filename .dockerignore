@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+README.md
+.env
+.env.*
+!.env.local.example
+.DS_Store
+npm-debug.log*
+coverage
+playwright-report
+test-results
+*.tsbuildinfo
