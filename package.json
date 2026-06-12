@@ -11,6 +11,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@alonlv/core-fe": "github:alonlv/core-fe#claude/core-fe-shared-logic-jm76nu",
     "@tanstack/react-query": "^5.0.0",
     "@tiptap/extension-placeholder": "^2.0.0",
     "@tiptap/extension-underline": "^2.0.0",
