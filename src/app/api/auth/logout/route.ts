@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const AUTH_COOKIE = "notes_auth";
+const AUTH_COOKIE = "assistent_auth";
 
 export async function POST() {
   const res = NextResponse.json({ ok: true });

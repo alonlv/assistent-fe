@@ -4,7 +4,7 @@ import type { BrowserContext, Page } from "@playwright/test";
 export const TEST_AUTH_PASSWORD = process.env.AUTH_PASSWORD ?? "test-password";
 export const TEST_AUTH_TOKEN = process.env.AUTH_TOKEN ?? "test-auth-token";
 
-const AUTH_COOKIE = "notes_auth";
+const AUTH_COOKIE = "assistent_auth";
 
 /**
  * Seed the session cookie directly so protected routes are reachable without

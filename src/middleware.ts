@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const AUTH_COOKIE = "notes_auth";
+const AUTH_COOKIE = "assistent_auth";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -11,6 +11,21 @@ const PUBLIC_PATHS = [
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const ab = enc.encode(a);
+  const bb = enc.encode(b);
+  if (ab.length !== bb.length) {
+    // Still iterate over both to prevent length-based timing leak
+    let diff = ab.length ^ bb.length;
+    for (let i = 0; i < Math.min(ab.length, bb.length); i++) diff |= ab[i] ^ bb[i];
+    return false;
+  }
+  let diff = 0;
+  for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
+  return diff === 0;
 }
 
 export function middleware(req: NextRequest): NextResponse {
@@ -26,7 +41,7 @@ export function middleware(req: NextRequest): NextResponse {
     return new NextResponse("AUTH_TOKEN env var is not set.", { status: 503 });
   }
 
-  if (!token || token !== expected) {
+  if (!token || !timingSafeEqual(token, expected)) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("next", req.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);

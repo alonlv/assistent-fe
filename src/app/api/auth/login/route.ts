@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const AUTH_COOKIE = "notes_auth";
+const AUTH_COOKIE = "assistent_auth";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 // Simple in-process rate limiter: max 10 attempts per IP per minute
