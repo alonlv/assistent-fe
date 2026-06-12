@@ -26,6 +26,7 @@ export default function CalendarSettingsPage({ params }: { params: Promise<{ id:
   const [color, setColor] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
+  const [googleError, setGoogleError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
 
@@ -60,19 +61,24 @@ export default function CalendarSettingsPage({ params }: { params: Promise<{ id:
   }
 
   async function handleConnectGoogle() {
-    const res = await apiFetch<{ auth_url: string }>(`/api/calendars/google-auth?user_id=${encodeURIComponent(currentUserId)}`);
-    window.open(res.auth_url, "_blank", "width=600,height=700");
-    // Poll for connection after popup
-    const interval = setInterval(async () => {
-      try {
-        const status = await apiFetch<{ connected: boolean }>(`/api/calendars/${id}/google-status?caller_id=${encodeURIComponent(currentUserId)}`);
-        if (status.connected) {
-          setGoogleConnected(true);
-          clearInterval(interval);
-        }
-      } catch { /* ignore */ }
-    }, 3000);
-    setTimeout(() => clearInterval(interval), 120000);
+    setGoogleError(null);
+    try {
+      const res = await apiFetch<{ auth_url: string }>(`/api/calendars/google-auth?user_id=${encodeURIComponent(currentUserId)}`);
+      window.open(res.auth_url, "_blank", "width=600,height=700");
+      // Poll for connection after popup opens
+      const interval = setInterval(async () => {
+        try {
+          const status = await apiFetch<{ connected: boolean }>(`/api/calendars/${id}/google-status?caller_id=${encodeURIComponent(currentUserId)}`);
+          if (status.connected) {
+            setGoogleConnected(true);
+            clearInterval(interval);
+          }
+        } catch { /* ignore polling errors */ }
+      }, 3000);
+      setTimeout(() => clearInterval(interval), 120000);
+    } catch (e: unknown) {
+      setGoogleError(e instanceof Error ? e.message : "Could not start Google authorization. Check that BACKEND_URL and Google credentials are configured.");
+    }
   }
 
   async function handleGoogleSync() {
@@ -134,6 +140,10 @@ export default function CalendarSettingsPage({ params }: { params: Promise<{ id:
 
         {googleConnected === null && (
           <p className="text-xs text-muted-foreground">Checking connection…</p>
+        )}
+
+        {googleError && (
+          <p className="text-xs text-red-500">{googleError}</p>
         )}
 
         {googleConnected === false && (
