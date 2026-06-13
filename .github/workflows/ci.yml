@@ -29,12 +29,21 @@ jobs:
           node-version: "20"
           cache: npm
 
-      # npm resolves `github:` dependencies via git. Without this the runner
-      # would attempt an SSH clone of core-fe and fail (no deploy key).
-      - name: Use HTTPS for GitHub git dependencies
+      # npm resolves `github:` dependencies via git.
+      # If GH_PAT secret is set, use it for authenticated HTTPS (works for private repos).
+      # Otherwise fall back to plain HTTPS (works when core-fe is public).
+      - name: Configure git for GitHub dependencies
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          if [ -n "$GH_PAT" ]; then
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "https://github.com/"
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "git@github.com:"
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "ssh://git@github.com/"
+          else
+            git config --global url."https://github.com/".insteadOf "git@github.com:"
+            git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          fi
 
       - name: Install dependencies
         run: npm install
@@ -62,10 +71,18 @@ jobs:
           node-version: "20"
           cache: npm
 
-      - name: Use HTTPS for GitHub git dependencies
+      - name: Configure git for GitHub dependencies
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          if [ -n "$GH_PAT" ]; then
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "https://github.com/"
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "git@github.com:"
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "ssh://git@github.com/"
+          else
+            git config --global url."https://github.com/".insteadOf "git@github.com:"
+            git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          fi
 
       - name: Install dependencies
         run: npm install
