@@ -29,9 +29,8 @@ jobs:
           node-version: "20"
           cache: npm
 
-      # npm resolves `github:` dependencies via git.
-      # If GH_PAT secret is set, use it for authenticated HTTPS (works for private repos).
-      # Otherwise fall back to plain HTTPS (works when core-fe is public).
+      # core-fe is public — plain HTTPS works. If GH_PAT secret is set it
+      # will be used instead for authenticated access (e.g. if repo goes private).
       - name: Configure git for GitHub dependencies
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
