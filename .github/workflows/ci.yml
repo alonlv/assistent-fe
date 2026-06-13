@@ -29,8 +29,13 @@ jobs:
           node-version: "20"
           cache: npm
 
+      - name: Configure git for GitHub dependencies
+        uses: alonlv/core-fe/.github/actions/configure-git@claude/core-fe-shared-logic-jm76nu
+        with:
+          token: ${{ secrets.GH_PAT }}
+
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Typecheck
         run: npm run typecheck
@@ -55,8 +60,13 @@ jobs:
           node-version: "20"
           cache: npm
 
+      - name: Configure git for GitHub dependencies
+        uses: alonlv/core-fe/.github/actions/configure-git@claude/core-fe-shared-logic-jm76nu
+        with:
+          token: ${{ secrets.GH_PAT }}
+
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

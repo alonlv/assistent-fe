@@ -1,12 +1,19 @@
 # syntax=docker/dockerfile:1
 
-# ── deps: install node_modules from a clean lockfile ──────────────────────────
+# ── deps: install node_modules from a clean lockfile ────────────────────────────────────
 FROM node:20-alpine AS deps
 WORKDIR /app
+
+# git is required to resolve the `github:` dependency @alonlv/core-fe.
+# The URL rewrite switches npm's SSH clone to plain HTTPS (public repo, no key needed).
+RUN apk add --no-cache git && \
+    git config --global url."https://github.com/".insteadOf "git@github.com:" && \
+    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# ── builder: produce the Next.js standalone output ───────────────────────────
+# ── builder: produce the Next.js standalone output ───────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -20,7 +27,7 @@ ENV BACKEND_URL=$BACKEND_URL \
     NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# ── runner: minimal runtime image ───────────────────────────────────────────
+# ── runner: minimal runtime image ───────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
