@@ -105,3 +105,5 @@ jobs:
             APP_API_TOKEN=${{ env.APP_API_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          secrets: |
+            gh_pat=${{ secrets.GH_PAT }}

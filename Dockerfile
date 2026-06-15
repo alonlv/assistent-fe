@@ -1,19 +1,28 @@
 # syntax=docker/dockerfile:1
 
-# ── deps: install node_modules from a clean lockfile ────────────────────────────────────
+# ── deps: install node_modules from a clean lockfile ───────────────────────────
 FROM node:20-alpine AS deps
 WORKDIR /app
 
-# git is required to resolve the `github:` dependency @alonlv/core-fe.
-# The URL rewrite switches npm's SSH clone to plain HTTPS (public repo, no key needed).
-RUN apk add --no-cache git && \
-    git config --global url."https://github.com/".insteadOf "git@github.com:" && \
-    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+RUN apk add --no-cache git
 
 COPY package.json package-lock.json ./
-RUN npm ci
+# --mount=type=secret keeps GH_PAT out of the image layers.
+# Falls back to plain HTTPS if no secret is provided (public repo).
+RUN --mount=type=secret,id=gh_pat \
+    GH_PAT=$(cat /run/secrets/gh_pat 2>/dev/null || echo "") && \
+    if [ -n "$GH_PAT" ]; then \
+      git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "https://github.com/"; \
+      git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "git@github.com:"; \
+      git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "ssh://git@github.com/"; \
+    else \
+      git config --global url."https://github.com/".insteadOf "git@github.com:"; \
+      git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"; \
+    fi && \
+    npm ci && \
+    rm -f ~/.gitconfig
 
-# ── builder: produce the Next.js standalone output ───────────────────────────────────
+# ── builder: produce the Next.js standalone output ─────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -27,7 +36,7 @@ ENV BACKEND_URL=$BACKEND_URL \
     NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# ── runner: minimal runtime image ───────────────────────────────────────────────
+# ── runner: minimal runtime image ──────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
@@ -43,5 +52,4 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 EXPOSE 3000
-
 CMD ["node", "server.js"]
