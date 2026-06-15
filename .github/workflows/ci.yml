@@ -30,9 +30,17 @@ jobs:
           cache: npm
 
       - name: Configure git for GitHub dependencies
-        uses: alonlv/core-fe/.github/actions/configure-git@claude/core-fe-shared-logic-jm76nu
-        with:
-          token: ${{ secrets.GH_PAT }}
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -n "$GH_PAT" ]; then
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "https://github.com/"
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "git@github.com:"
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "ssh://git@github.com/"
+          else
+            git config --global url."https://github.com/".insteadOf "git@github.com:"
+            git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          fi
 
       - name: Install dependencies
         run: npm install
@@ -61,9 +69,17 @@ jobs:
           cache: npm
 
       - name: Configure git for GitHub dependencies
-        uses: alonlv/core-fe/.github/actions/configure-git@claude/core-fe-shared-logic-jm76nu
-        with:
-          token: ${{ secrets.GH_PAT }}
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -n "$GH_PAT" ]; then
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "https://github.com/"
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "git@github.com:"
+            git config --global url."https://x-access-token:${GH_PAT}@github.com/".insteadOf "ssh://git@github.com/"
+          else
+            git config --global url."https://github.com/".insteadOf "git@github.com:"
+            git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          fi
 
       - name: Install dependencies
         run: npm install
