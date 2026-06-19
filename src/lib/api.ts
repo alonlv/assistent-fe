@@ -1,4 +1,4 @@
-import type { Automation, AutomationKind, BackgroundStatusResponse, Calendar, CalendarEvent, CalendarPermission, CalendarRole, Note, Priority, Task, TaskStatus, Topic } from "@/types/api";
+import type { Automation, AutomationKind, BackgroundStatusResponse, CalendarConnectionStatus, Note, Priority, Task, TaskStatus, Topic } from "@/types/api";
 
 export interface ChatTurn {
   role: "user" | "assistant";
@@ -83,43 +83,32 @@ export const api = {
         { method: "DELETE" }
       ),
   },
+  // The assistant has no calendar of its own — it drives the user's real Google/Apple
+  // calendar. The FE only reports connection status and starts the Google OAuth flow.
   calendars: {
-    list: (userId?: string) => {
+    connectionStatus: (userId?: string) => {
       const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
-      return apiFetch<Calendar[]>(`/api/calendars${qs}`);
+      return apiFetch<CalendarConnectionStatus>(`/api/calendars/connection-status${qs}`);
     },
-    get: (id: string, userId?: string) => {
-      const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
-      return apiFetch<Calendar>(`/api/calendars/${id}${qs}`);
-    },
-    create: (body: { name: string; description?: string; color?: string; owner_id: string }) =>
-      apiFetch<Calendar>("/api/calendars", { method: "POST", body: JSON.stringify(body) }),
-    update: (id: string, body: { name?: string; description?: string; color?: string }, callerId: string) =>
-      apiFetch<Calendar>(`/api/calendars/${id}?caller_id=${encodeURIComponent(callerId)}`, { method: "PUT", body: JSON.stringify(body) }),
-    delete: (id: string, callerId: string) =>
-      apiFetch<void>(`/api/calendars/${id}?caller_id=${encodeURIComponent(callerId)}`, { method: "DELETE" }),
-    getPermissions: (id: string, callerId: string) =>
-      apiFetch<CalendarPermission[]>(`/api/calendars/${id}/permissions?caller_id=${encodeURIComponent(callerId)}`),
-    grantPermission: (id: string, callerId: string, body: { user_id: string; role: CalendarRole }) =>
-      apiFetch<CalendarPermission>(`/api/calendars/${id}/permissions?caller_id=${encodeURIComponent(callerId)}`, { method: "POST", body: JSON.stringify(body) }),
-    updatePermission: (id: string, userId: string, callerId: string, body: { user_id: string; role: CalendarRole }) =>
-      apiFetch<CalendarPermission>(`/api/calendars/${id}/permissions/${encodeURIComponent(userId)}?caller_id=${encodeURIComponent(callerId)}`, { method: "PUT", body: JSON.stringify(body) }),
-    revokePermission: (id: string, userId: string, callerId: string) =>
-      apiFetch<void>(`/api/calendars/${id}/permissions/${encodeURIComponent(userId)}?caller_id=${encodeURIComponent(callerId)}`, { method: "DELETE" }),
-    listEvents: (id: string, opts?: { callerId?: string; from?: string; to?: string }) => {
-      const params = new URLSearchParams();
-      if (opts?.callerId) params.set("caller_id", opts.callerId);
-      if (opts?.from) params.set("from_time", opts.from);
-      if (opts?.to) params.set("to_time", opts.to);
-      const qs = params.toString();
-      return apiFetch<CalendarEvent[]>(`/api/calendars/${id}/events${qs ? `?${qs}` : ""}`);
-    },
-    createEvent: (id: string, body: { title: string; start_time: string; end_time?: string; description?: string; location?: string; all_day?: boolean; visibility?: "private" | "shared"; attendees?: string[]; remind_before_minutes?: number; created_by: string }) =>
-      apiFetch<CalendarEvent>(`/api/calendars/${id}/events`, { method: "POST", body: JSON.stringify(body) }),
-    updateEvent: (calendarId: string, eventId: string, body: { caller_id: string; title?: string; description?: string; start_time?: string; end_time?: string; clear_end_time?: boolean; location?: string; all_day?: boolean; visibility?: "private" | "shared" }) =>
-      apiFetch<CalendarEvent>(`/api/calendars/${calendarId}/events/${eventId}`, { method: "PATCH", body: JSON.stringify(body) }),
-    deleteEvent: (calendarId: string, eventId: string, callerId: string) =>
-      apiFetch<void>(`/api/calendars/${calendarId}/events/${eventId}?caller_id=${encodeURIComponent(callerId)}`, { method: "DELETE" }),
+    googleAuthUrl: (userId?: string) =>
+      `/api/calendars/google-auth${userId ? `?user_id=${encodeURIComponent(userId)}` : ""}`,
+    startGoogleAuth: (userId?: string) =>
+      apiFetch<{ auth_url: string }>(
+        `/api/calendars/google-auth${userId ? `?user_id=${encodeURIComponent(userId)}` : ""}`,
+      ),
+    appleSetup: (body: { user_id: string; username: string; password: string }) =>
+      apiFetch<{ status: string; username: string }>(`/api/calendars/apple/setup`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    disconnectGoogle: (userId: string) =>
+      apiFetch<{ status: string }>(`/api/calendars/google/disconnect?user_id=${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+      }),
+    disconnectApple: (userId: string) =>
+      apiFetch<{ status: string }>(`/api/calendars/apple/disconnect?user_id=${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+      }),
   },
   automations: {
     list: (userId?: string, kind?: AutomationKind) => {

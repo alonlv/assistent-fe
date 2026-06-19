@@ -1,129 +1,179 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { CalendarDays, Plus, ChevronRight } from "lucide-react";
+import { CalendarDays, Check, X, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCalendars, useCreateCalendar } from "@/hooks/use-calendars";
+import { api } from "@/lib/api";
+import { useCalendarConnection } from "@/hooks/use-calendar-connection";
 import { useSelectedUser } from "@/context/user-context";
-import { useContacts } from "@/hooks/use-contacts";
-import { cn } from "@/lib/utils";
 
-export default function CalendarIndexPage() {
-  const { selectedUserId } = useSelectedUser();
-  const { data: calendars = [], isLoading } = useCalendars(selectedUserId ?? undefined);
-  const { data: contacts = [] } = useContacts();
-  const createCalendar = useCreateCalendar();
+export default function CalendarConnectionsPage() {
+  const { selectedUserId, selectedUserName } = useSelectedUser();
+  const userId = selectedUserId ?? "api-user";
+  const { data: status, isLoading, refetch } = useCalendarConnection(userId);
 
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState("#6366f1");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [appleUser, setAppleUser] = useState("");
+  const [applePass, setApplePass] = useState("");
+  const [showAppleForm, setShowAppleForm] = useState(false);
 
-  async function handleCreate() {
-    const name = newName.trim();
-    if (!name) return;
-    await createCalendar.mutateAsync({
-      name,
-      color: newColor,
-      owner_id: selectedUserId ?? "api-user",
-    });
-    setNewName("");
-    setCreating(false);
+  async function connectGoogle() {
+    setError("");
+    setBusy("google");
+    try {
+      const { auth_url } = await api.calendars.startGoogleAuth(userId);
+      window.location.href = auth_url;
+    } catch {
+      setError("Could not start Google authorization. Check that Google Calendar is configured on the backend.");
+      setBusy(null);
+    }
   }
 
-  const myCalendars = calendars.filter((c) => c.owner_id === (selectedUserId ?? "api-user"));
-  const sharedCalendars = calendars.filter((c) => c.owner_id !== (selectedUserId ?? "api-user"));
+  async function disconnectGoogle() {
+    setBusy("google");
+    try {
+      await api.calendars.disconnectGoogle(userId);
+      await refetch();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function connectApple() {
+    setError("");
+    setBusy("apple");
+    try {
+      await api.calendars.appleSetup({ user_id: userId, username: appleUser.trim(), password: applePass.trim() });
+      setAppleUser("");
+      setApplePass("");
+      setShowAppleForm(false);
+      await refetch();
+    } catch {
+      setError("Could not connect Apple Calendar. Double-check the Apple ID and app-specific password.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function disconnectApple() {
+    setBusy("apple");
+    try {
+      await api.calendars.disconnectApple(userId);
+      await refetch();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Calendars</h1>
-        <Button size="sm" onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          New calendar
-        </Button>
+      <div className="flex items-center gap-3 mb-2">
+        <CalendarDays className="h-6 w-6 text-primary" />
+        <h1 className="text-2xl font-bold">Calendar</h1>
       </div>
+      <p className="text-sm text-muted-foreground mb-6">
+        The assistant doesn&apos;t keep its own calendar — it works directly with the calendar you already use.
+        Connect Google or Apple here and the assistant can read your schedule and add events for you
+        {selectedUserId ? ` (managing ${selectedUserName})` : ""}.
+      </p>
 
-      {creating && (
-        <div className="rounded-xl border border-border bg-card p-4 mb-6 space-y-3">
-          <h2 className="font-medium text-sm">Create calendar</h2>
-          <div className="flex gap-2">
-            <input
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreating(false); }}
-              placeholder="Calendar name…"
-              className="flex-1 h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-            <input type="color" value={newColor} onChange={(e) => setNewColor(e.target.value)} className="h-9 w-9 rounded-md border border-input cursor-pointer" title="Calendar color" />
-          </div>
-          <div className="flex gap-2 justify-end">
-            <Button variant="outline" size="sm" onClick={() => setCreating(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleCreate} disabled={!newName.trim() || createCalendar.isPending}>
-              {createCalendar.isPending ? "Creating…" : "Create"}
-            </Button>
-          </div>
+      {error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive text-sm px-3 py-2 mb-4">
+          {error}
         </div>
       )}
 
-      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <Loader2 className="h-4 w-4 animate-spin" /> Checking connections…
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Google */}
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-medium">Google Calendar</h2>
+                <StatusBadge connected={!!status?.google} />
+              </div>
+              {status?.google ? (
+                <Button size="sm" variant="outline" disabled={busy === "google"} onClick={disconnectGoogle}>
+                  Disconnect
+                </Button>
+              ) : (
+                <Button size="sm" disabled={busy === "google"} onClick={connectGoogle}>
+                  {busy === "google" ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Connect <ExternalLink className="h-3.5 w-3.5 ml-1" /></>}
+                </Button>
+              )}
+            </div>
+          </div>
 
-      {myCalendars.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">My Calendars</h2>
-          <div className="space-y-2">
-            {myCalendars.map((cal) => (
-              <Link
-                key={cal.id}
-                href={`/calendar/${cal.id}`}
-                className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 hover:border-primary/40 transition-colors group"
-              >
-                <span className="h-3 w-3 rounded-full shrink-0" style={{ background: cal.color }} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{cal.name}</p>
-                  {cal.description && <p className="text-xs text-muted-foreground truncate">{cal.description.slice(0, 80)}</p>}
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </Link>
-            ))}
+          {/* Apple */}
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-medium">Apple Calendar (iCloud)</h2>
+                <StatusBadge connected={!!status?.apple} detail={status?.apple_username} />
+              </div>
+              {status?.apple ? (
+                <Button size="sm" variant="outline" disabled={busy === "apple"} onClick={disconnectApple}>
+                  Disconnect
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" onClick={() => setShowAppleForm((v) => !v)}>
+                  Connect
+                </Button>
+              )}
+            </div>
+
+            {showAppleForm && !status?.apple && (
+              <div className="mt-4 space-y-2 border-t border-border pt-4">
+                <p className="text-xs text-muted-foreground">
+                  Use your Apple ID and an{" "}
+                  <a href="https://support.apple.com/en-us/102654" target="_blank" rel="noreferrer" className="underline">
+                    app-specific password
+                  </a>{" "}
+                  (not your normal password).
+                </p>
+                <input
+                  value={appleUser}
+                  onChange={(e) => setAppleUser(e.target.value)}
+                  placeholder="Apple ID (email)"
+                  className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+                <input
+                  value={applePass}
+                  onChange={(e) => setApplePass(e.target.value)}
+                  type="password"
+                  placeholder="App-specific password"
+                  className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+                <Button size="sm" disabled={busy === "apple" || !appleUser || !applePass} onClick={connectApple}>
+                  {busy === "apple" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save & verify"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      {sharedCalendars.length > 0 && (
-        <div>
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Shared with me</h2>
-          <div className="space-y-2">
-            {sharedCalendars.map((cal) => {
-              const ownerContact = contacts.find((c) => c.canonical_id === cal.owner_id);
-              return (
-                <Link
-                  key={cal.id}
-                  href={`/calendar/${cal.id}`}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 hover:border-primary/40 transition-colors group"
-                >
-                  <span className="h-3 w-3 rounded-full shrink-0" style={{ background: cal.color }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{cal.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {ownerContact ? `by ${ownerContact.name}` : "Shared"}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {!isLoading && calendars.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-          <CalendarDays className="h-12 w-12 mb-3 opacity-30" />
-          <p className="text-sm mb-1">No calendars yet</p>
-          <Button size="sm" variant="outline" onClick={() => setCreating(true)}>Create your first calendar</Button>
-        </div>
+function StatusBadge({ connected, detail }: { connected: boolean; detail?: string }) {
+  return (
+    <div className="mt-1 flex items-center gap-1.5 text-sm">
+      {connected ? (
+        <>
+          <Check className="h-4 w-4 text-green-600" />
+          <span className="text-green-600">Connected{detail ? ` · ${detail}` : ""}</span>
+        </>
+      ) : (
+        <>
+          <X className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Not connected</span>
+        </>
       )}
     </div>
   );
