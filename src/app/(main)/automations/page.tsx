@@ -74,7 +74,7 @@ export default function AutomationsPage() {
   const textLabel = isReminder ? "Message" : "Instruction";
   const textPlaceholder = isReminder
     ? "Reminder text…"
-    : "e.g. Send me a daily task summary at 9am";
+    : "e.g. Send me a news digest every 4 hours, filtered to what's relevant to me";
   const emptyForm = isReminder ? EMPTY_SCHEDULED_FORM : EMPTY_MONITOR_FORM;
 
   return (
