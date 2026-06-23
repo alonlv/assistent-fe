@@ -8,7 +8,7 @@ import {
 import { useSelectedUser } from "@/context/user-context";
 import { useTasks } from "@/hooks/use-tasks";
 import { useAutomations } from "@/hooks/use-automations";
-import { useTodayAgenda } from "@/hooks/use-calendar-events";
+import { useCalendarConnection } from "@/hooks/use-calendar-connection";
 import { useBackgroundStatus, notifyingRuns } from "@/hooks/use-background-status";
 import { api } from "@/lib/api";
 import { Md } from "@/components/ui/md";
@@ -51,7 +51,7 @@ export default function DashboardPage() {
 
   const { data: tasks = [] } = useTasks(selectedUserId || undefined);
   const { data: reminders = [] } = useAutomations(selectedUserId || undefined, "reminder");
-  const { data: events = [] } = useTodayAgenda(selectedUserId || undefined);
+  const { data: calConn } = useCalendarConnection(selectedUserId || "api-user");
   const { data: status } = useBackgroundStatus();
 
   const now = new Date();
@@ -121,20 +121,24 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        {/* Today's calendar */}
-        <Card title="Today" icon={CalendarDays} href="/calendar">
-          {events.length === 0 ? (
-            <Empty>No events today.</Empty>
+        {/* Calendar connection */}
+        <Card title="Calendar" icon={CalendarDays} href="/calendar" action="Manage">
+          {!calConn || (!calConn.google && !calConn.apple) ? (
+            <Empty>No calendar connected. Connect Google or Apple so the assistant can manage your real schedule.</Empty>
           ) : (
             <ul className="space-y-2">
-              {events.slice(0, 6).map((e) => (
-                <li key={e.id} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate">{e.title}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {e.all_day ? "All day" : fmtTime(e.start_time)}
-                  </span>
-                </li>
-              ))}
+              <li className="flex items-center justify-between gap-3 text-sm">
+                <span>Google Calendar</span>
+                <span className={cn("shrink-0 text-xs", calConn.google ? "text-green-600" : "text-muted-foreground")}>
+                  {calConn.google ? "Connected" : "Not connected"}
+                </span>
+              </li>
+              <li className="flex items-center justify-between gap-3 text-sm">
+                <span>Apple Calendar</span>
+                <span className={cn("shrink-0 text-xs", calConn.apple ? "text-green-600" : "text-muted-foreground")}>
+                  {calConn.apple ? "Connected" : "Not connected"}
+                </span>
+              </li>
             </ul>
           )}
         </Card>
