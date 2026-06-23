@@ -28,6 +28,7 @@ interface Config {
   agent_verbose_responses: boolean;
   organizer_name: string;
   organizer_email: string;
+  news_provider: string;
   llm_providers: LlmProvider[];
   prompt_core: string;
   prompt_memory: string;
@@ -457,6 +458,18 @@ export default function AdminPage() {
               onSave={() => saveField("organizer_email", config.organizer_email)}
               onReset={() => resetField("organizer_email")}
               placeholder="you@example.com"
+            />
+          </Card>
+
+          <Card title="News">
+            <SaveRow
+              label="News Provider"
+              hint="Provider used by news_search and news-digest monitors. Currently only 'rss' is implemented."
+              value={config.news_provider}
+              onChange={(v) => setConfig({ ...config, news_provider: v })}
+              onSave={() => saveField("news_provider", config.news_provider)}
+              onReset={() => resetField("news_provider")}
+              placeholder="rss"
             />
           </Card>
         </div>
@@ -1459,6 +1472,19 @@ function DataManager() {
                   onUpdate={(updates) => updateData('topics', topic.id, updates)}
                 />
               )) || <p className="text-sm text-muted-foreground">No topics</p>}
+            </div>
+          </div>
+
+          {/* News Interests */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">News Interests ({data.news_interests?.length || 0})</h3>
+            <div className="space-y-2">
+              {data.news_interests?.map((interest: any) => (
+                <div key={interest.id} className="rounded border p-3 text-sm">
+                  <p className="text-xs text-muted-foreground mb-1">ID: {interest.id}</p>
+                  <p>{interest.query}</p>
+                </div>
+              )) || <p className="text-sm text-muted-foreground">No news interests</p>}
             </div>
           </div>
 
