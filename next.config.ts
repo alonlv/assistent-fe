@@ -10,6 +10,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  transpilePackages: ["@alonlv/core-fe"],
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
